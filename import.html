@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Import History – backstage</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0e0e0e; --bg2: #161616; --bg3: #1f1f1f;
+      --border: #2a2a2a; --amber: #e8a030; --text: #f0ece4;
+      --text-mid: #9a948a; --text-dim: #5a5550;
+      --green: #4a9460; --red: #c94040;
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; font-weight: 300; padding: 1.5rem; max-width: 800px; margin: 0 auto; }
+    h1 { font-family: 'Playfair Display', serif; font-size: 2rem; font-style: italic; color: var(--amber); margin-bottom: 0.5rem; }
+    p { color: var(--text-mid); font-size: 0.9rem; line-height: 1.6; margin-bottom: 1.5rem; }
+    label { display: block; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-mid); margin-bottom: 0.5rem; }
+    textarea, input, select {
+      width: 100%; background: var(--bg2); border: 1px solid var(--border);
+      border-radius: 8px; padding: 0.75rem; color: var(--text);
+      font-family: 'DM Sans', sans-serif; font-size: 0.9rem; margin-bottom: 1rem;
+    }
+    textarea { min-height: 200px; resize: vertical; }
+    input:focus, textarea:focus, select:focus { outline: none; border-color: var(--amber); }
+    button {
+      padding: 0.75rem 1.5rem; border-radius: 8px; border: none;
+      cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 0.95rem; font-weight: 500;
+      transition: all 0.2s;
+    }
+    .btn-primary { background: var(--amber); color: #000; }
+    .btn-primary:hover { background: #f0b040; }
+    .btn-secondary { background: none; border: 1px solid var(--border); color: var(--text-mid); margin-left: 0.75rem; }
+    .preview { margin-top: 1.5rem; }
+    .preview-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .preview-table th { text-align: left; padding: 0.5rem; color: var(--text-dim); font-weight: 400; border-bottom: 1px solid var(--border); }
+    .preview-table td { padding: 0.5rem; border-bottom: 1px solid var(--border); }
+    .preview-table tr:hover td { background: var(--bg2); }
+    .status { padding: 0.75rem; border-radius: 8px; margin-bottom: 1rem; }
+    .status.success { background: rgba(74,148,96,0.15); color: var(--green); border: 1px solid var(--green); }
+    .status.error { background: rgba(201,64,64,0.15); color: var(--red); border: 1px solid var(--red); }
+    .section { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; }
+    .section h2 { font-family: 'Playfair Display', serif; font-size: 1.2rem; margin-bottom: 1rem; }
+    .row { display: flex; gap: 1rem; }
+    .row > * { flex: 1; }
+    .star-select { display: flex; gap: 0.25rem; align-items: center; }
+    .star-select select { margin-bottom: 0; }
+    small { color: var(--text-dim); font-size: 0.78rem; display: block; margin-top: -0.75rem; margin-bottom: 1rem; }
+  </style>
+</head>
+<body>
+  <h1>Import History</h1>
+  <p>Two ways to import: paste a block of text and let the parser try to extract events, or add them one at a time using the manual form below.</p>
+
+  <!-- BULK PASTE -->
+  <div class="section">
+    <h2>Bulk Paste</h2>
+    <p>Paste your Notes app content below. Each line should ideally look like:<br>
+    <code style="color:var(--amber)">Artist — Venue — Date — Rating (1-5)</code><br>
+    The parser will do its best. You'll preview before anything is saved.</p>
+    <label>Paste your notes here</label>
+    <textarea id="pasteInput" placeholder="e.g.
+Kamasi Washington — Barbican — 12 Oct 2023 — 5
+Nils Frahm — Royal Festival Hall — 3 Mar 2022 — 4
+Hamilton — Victoria Palace Theatre — 14 Feb 2020 — 5
+..."></textarea>
+    <label>Default event type for pasted events</label>
+    <select id="defaultType">
+      <option value="Gig">Gig / Concert</option>
+      <option value="Theatre">Theatre</option>
+      <option value="Dance">Dance / Ballet</option>
+      <option value="Exhibition">Exhibition</option>
+      <option value="Comedy">Comedy</option>
+      <option value="Opera">Opera / Classical</option>
+    </select>
+    <label>Who attended (default — can be changed per event)</label>
+    <div style="display:flex;gap:0.5rem;margin-bottom:1rem;">
+      <button class="attendee-toggle btn-secondary" data-user="nick" style="padding:0.4rem 1rem;border-radius:20px;">Nick</button>
+      <button class="attendee-toggle btn-secondary" data-user="denise" style="padding:0.4rem 1rem;border-radius:20px;">Denise</button>
+      <button class="attendee-toggle btn-secondary" data-user="ben" style="padding:0.4rem 1rem;border-radius:20px;">Ben</button>
+    </div>
+    <button class="btn-primary" onclick="parseInput()">Parse & Preview</button>
+    <div id="bulkPreview" class="preview"></div>
+  </div>
+
+  <!-- MANUAL ENTRY -->
+  <div class="section">
+    <h2>Add single event</h2>
+    <div class="row">
+      <div>
+        <label>Artist / Show</label>
+        <input type="text" id="mArtist" placeholder="e.g. Kamasi Washington">
+      </div>
+      <div>
+        <label>Venue</label>
+        <input type="text" id="mVenue" placeholder="e.g. Ronnie Scott's">
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label>Date</label>
+        <input type="date" id="mDate">
+      </div>
+      <div>
+        <label>Type</label>
+        <select id="mType">
+          <option value="Gig">Gig / Concert</option>
+          <option value="Theatre">Theatre</option>
+          <option value="Dance">Dance / Ballet</option>
+          <option value="Exhibition">Exhibition</option>
+          <option value="Comedy">Comedy</option>
+          <option value="Opera">Opera / Classical</option>
+        </select>
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label>Nick's rating</label>
+        <select id="mRatingNick"><option value="0">—</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select>
+      </div>
+      <div>
+        <label>Denise's rating</label>
+        <select id="mRatingDenise"><option value="0">—</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select>
+      </div>
+      <div>
+        <label>Ben's rating</label>
+        <select id="mRatingBen"><option value="0">—</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select>
+      </div>
+    </div>
+    <label>Notes</label>
+    <textarea id="mNotes" rows="2" placeholder="Optional notes…"></textarea>
+    <div id="manualStatus"></div>
+    <button class="btn-primary" onclick="saveManual()">Add Event</button>
+  </div>
+
+  <script type="module">
+    import { db } from './js/firebase-config.js';
+    import { ref, push, set, get } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js";
+
+    window.db = db;
+    window.dbRef = ref;
+    window.dbPush = push;
+    window.dbSet = set;
+    window.dbGet = get;
+  </script>
+  <script>
+    let selectedAttendees = ['nick'];
+    let parsedEvents = [];
+
+    // Toggle attendees
+    document.querySelectorAll('.attendee-toggle').forEach(btn => {
+      if (btn.dataset.user === 'nick') btn.style.background = 'var(--amber)'; // nick default
+      btn.addEventListener('click', () => {
+        const u = btn.dataset.user;
+        if (selectedAttendees.includes(u)) {
+          selectedAttendees = selectedAttendees.filter(x => x !== u);
+          btn.style.background = '';
+          btn.style.color = '';
+        } else {
+          selectedAttendees.push(u);
+          btn.style.background = 'var(--amber)';
+          btn.style.color = '#000';
+        }
+      });
+    });
+
+    function parseDate(str) {
+      if (!str) return '';
+      // Try DD Mon YYYY, DD/MM/YYYY, YYYY-MM-DD, Mon YYYY etc
+      const d = new Date(str.trim());
+      if (!isNaN(d)) return d.toISOString().split('T')[0];
+      return '';
+    }
+
+    window.parseInput = function() {
+      const lines = document.getElementById('pasteInput').value
+        .split('\n').map(l => l.trim()).filter(l => l.length > 2);
+
+      const defaultType = document.getElementById('defaultType').value;
+      parsedEvents = [];
+
+      lines.forEach(line => {
+        // Try to split by — or | or ,
+        const parts = line.split(/\s*[—|\t]\s*/);
+        if (parts.length >= 2) {
+          const artist = parts[0].trim();
+          const venue = parts.length >= 3 ? parts[1].trim() : '';
+          const dateStr = parts.length >= 4 ? parts[2].trim() : (parts.length >= 3 ? parts[1].trim() : '');
+          const ratingStr = parts[parts.length - 1].trim();
+          const rating = parseInt(ratingStr);
+
+          parsedEvents.push({
+            artist,
+            venue: parts.length >= 3 ? venue : '',
+            date: parseDate(dateStr),
+            rating: (!isNaN(rating) && rating >= 1 && rating <= 5) ? rating : 0,
+            type: defaultType,
+            notes: ''
+          });
+        } else {
+          // Single value — just artist name
+          parsedEvents.push({ artist: line, venue: '', date: '', rating: 0, type: defaultType, notes: '' });
+        }
+      });
+
+      const preview = document.getElementById('bulkPreview');
+      if (!parsedEvents.length) {
+        preview.innerHTML = '<div class="status error">Nothing parsed. Check the format.</div>';
+        return;
+      }
+
+      preview.innerHTML = `
+        <p style="margin-bottom:0.75rem; color:var(--text-mid)">${parsedEvents.length} events parsed. Review and import:</p>
+        <table class="preview-table">
+          <tr><th>Artist / Show</th><th>Venue</th><th>Date</th><th>Type</th><th>Rating</th></tr>
+          ${parsedEvents.map((e, i) => `<tr>
+            <td><input type="text" value="${e.artist}" data-idx="${i}" data-field="artist" style="background:transparent;border:none;border-bottom:1px solid var(--border);border-radius:0;padding:0.25rem;width:100%"></td>
+            <td><input type="text" value="${e.venue}" data-idx="${i}" data-field="venue" style="background:transparent;border:none;border-bottom:1px solid var(--border);border-radius:0;padding:0.25rem;width:100%"></td>
+            <td><input type="date" value="${e.date}" data-idx="${i}" data-field="date" style="background:transparent;border:none;border-bottom:1px solid var(--border);border-radius:0;padding:0.25rem;width:100%"></td>
+            <td><select data-idx="${i}" data-field="type" style="background:transparent;border:none;border-bottom:1px solid var(--border);border-radius:0;padding:0.25rem;">
+              ${['Gig','Theatre','Dance','Exhibition','Comedy','Opera'].map(t => `<option${e.type===t?' selected':''}>${t}</option>`).join('')}
+            </select></td>
+            <td><select data-idx="${i}" data-field="rating" style="background:transparent;border:none;border-bottom:1px solid var(--border);border-radius:0;padding:0.25rem;">
+              <option value="0">—</option>${[1,2,3,4,5].map(n=>`<option${e.rating===n?' selected':''}>${n}</option>`).join('')}
+            </select></td>
+          </tr>`).join('')}
+        </table>
+        <div style="margin-top:1rem; display:flex; gap:0.75rem;">
+          <button class="btn-primary" onclick="importAll()">Import All ${parsedEvents.length} Events</button>
+        </div>
+        <div id="importStatus" style="margin-top:0.75rem;"></div>`;
+
+      // Live edit
+      preview.querySelectorAll('input, select').forEach(el => {
+        el.addEventListener('change', () => {
+          const idx = parseInt(el.dataset.idx);
+          const field = el.dataset.field;
+          parsedEvents[idx][field] = field === 'rating' ? parseInt(el.value) : el.value;
+        });
+      });
+    };
+
+    window.importAll = async function() {
+      const status = document.getElementById('importStatus');
+      status.innerHTML = '<span style="color:var(--amber)">Importing…</span>';
+      let count = 0;
+      for (const e of parsedEvents) {
+        if (!e.artist) continue;
+        const attendeesObj = {};
+        selectedAttendees.forEach(u => { attendeesObj[u] = true; });
+        const ratingsObj = {};
+        selectedAttendees.forEach(u => { if (e.rating > 0) ratingsObj[u] = e.rating; });
+        await window.dbPush(window.dbRef(window.db, 'events'), {
+          artist: e.artist, venue: e.venue, date: e.date,
+          type: e.type, status: 'Past', notes: e.notes,
+          ratings: ratingsObj, attendees: attendeesObj,
+          addedBy: 'nick', createdAt: Date.now()
+        });
+        count++;
+      }
+      status.innerHTML = `<div class="status success">✓ Imported ${count} events successfully. <a href="index.html" style="color:var(--amber)">Go to app →</a></div>`;
+    };
+
+    window.saveManual = async function() {
+      const artist = document.getElementById('mArtist').value.trim();
+      const venue = document.getElementById('mVenue').value.trim();
+      const date = document.getElementById('mDate').value;
+      const type = document.getElementById('mType').value;
+      const notes = document.getElementById('mNotes').value.trim();
+      const rNick = parseInt(document.getElementById('mRatingNick').value) || 0;
+      const rDenise = parseInt(document.getElementById('mRatingDenise').value) || 0;
+      const rBen = parseInt(document.getElementById('mRatingBen').value) || 0;
+
+      if (!artist) { document.getElementById('manualStatus').innerHTML = '<div class="status error">Artist name required.</div>'; return; }
+
+      const ratings = {};
+      if (rNick > 0) ratings.nick = rNick;
+      if (rDenise > 0) ratings.denise = rDenise;
+      if (rBen > 0) ratings.ben = rBen;
+
+      await window.dbPush(window.dbRef(window.db, 'events'), {
+        artist, venue, date, type, notes,
+        status: 'Past', ratings,
+        attendees: { nick: true },
+        addedBy: 'nick', createdAt: Date.now()
+      });
+
+      document.getElementById('manualStatus').innerHTML = '<div class="status success">✓ Event added.</div>';
+      document.getElementById('mArtist').value = '';
+      document.getElementById('mVenue').value = '';
+      document.getElementById('mDate').value = '';
+      document.getElementById('mNotes').value = '';
+      setTimeout(() => document.getElementById('manualStatus').innerHTML = '', 3000);
+    };
+  </script>
+</body>
+</html>

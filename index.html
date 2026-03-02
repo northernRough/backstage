@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>backstage</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- LOGIN SCREEN -->
+  <div id="loginScreen" class="screen active">
+    <div class="login-bg"></div>
+    <div class="login-content">
+      <div class="login-header">
+        <div class="login-logo">◈</div>
+        <h1 class="login-title">backstage</h1>
+        <p class="login-sub">Who's logging in?</p>
+      </div>
+      <div class="user-select">
+        <button class="user-btn" data-user="nick">
+          <span class="user-initial">N</span>
+          <span class="user-name">Nick</span>
+          <span class="user-role">Admin</span>
+        </button>
+        <button class="user-btn" data-user="denise">
+          <span class="user-initial">D</span>
+          <span class="user-name">Denise</span>
+        </button>
+        <button class="user-btn" data-user="ben">
+          <span class="user-initial">B</span>
+          <span class="user-name">Ben</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN APP -->
+  <div id="appScreen" class="screen">
+
+    <!-- HEADER -->
+    <header class="app-header">
+      <div class="header-left">
+        <span class="header-logo">◈</span>
+        <span class="header-title">backstage</span>
+      </div>
+      <div class="header-right">
+        <span id="currentUserBadge" class="user-badge"></span>
+        <button id="logoutBtn" class="icon-btn" title="Switch user">⇄</button>
+      </div>
+    </header>
+
+    <!-- NAV TABS -->
+    <nav class="tab-nav">
+      <button class="tab-btn active" data-tab="feed">Feed</button>
+      <button class="tab-btn" data-tab="upcoming">Upcoming</button>
+      <button class="tab-btn" data-tab="artists">Artists</button>
+      <button class="tab-btn" data-tab="venues">Venues</button>
+    </nav>
+
+    <!-- FEED TAB -->
+    <div id="tab-feed" class="tab-content active">
+      <div class="tab-toolbar">
+        <div class="filter-row">
+          <button class="filter-chip active" data-filter="all">All</button>
+          <button class="filter-chip" data-filter="nick">Nick</button>
+          <button class="filter-chip" data-filter="denise">Denise</button>
+          <button class="filter-chip" data-filter="ben">Ben</button>
+        </div>
+        <div class="type-filter-row">
+          <button class="type-chip active" data-type="all">All types</button>
+          <button class="type-chip" data-type="Gig">Gigs</button>
+          <button class="type-chip" data-type="Theatre">Theatre</button>
+          <button class="type-chip" data-type="Dance">Dance</button>
+          <button class="type-chip" data-type="Exhibition">Exhibition</button>
+          <button class="type-chip" data-type="Comedy">Comedy</button>
+          <button class="type-chip" data-type="Opera">Opera</button>
+        </div>
+      </div>
+      <div id="feedList" class="event-list"></div>
+    </div>
+
+    <!-- UPCOMING TAB -->
+    <div id="tab-upcoming" class="tab-content">
+      <div class="tab-toolbar">
+        <div class="filter-row">
+          <button class="status-chip active" data-status="all">All</button>
+          <button class="status-chip" data-status="Booked">Booked</button>
+          <button class="status-chip" data-status="Interested">Interested</button>
+        </div>
+      </div>
+      <div id="upcomingList" class="event-list"></div>
+    </div>
+
+    <!-- ARTISTS TAB -->
+    <div id="tab-artists" class="tab-content">
+      <div class="tab-toolbar">
+        <input type="text" id="artistSearch" class="search-input" placeholder="Search artists…">
+      </div>
+      <div id="artistList" class="profile-list"></div>
+    </div>
+
+    <!-- VENUES TAB -->
+    <div id="tab-venues" class="tab-content">
+      <div class="tab-toolbar">
+        <input type="text" id="venueSearch" class="search-input" placeholder="Search venues…">
+      </div>
+      <div id="venueList" class="profile-list"></div>
+    </div>
+
+    <!-- FAB -->
+    <button id="fabBtn" class="fab">+</button>
+
+  </div>
+
+  <!-- ADD EVENT MODAL -->
+  <div id="addEventModal" class="modal">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-header">
+        <h2 class="modal-title">Log Event</h2>
+        <button class="modal-close" id="closeAddModal">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Type</label>
+          <div class="type-selector">
+            <button class="type-opt active" data-val="Gig">🎵 Gig</button>
+            <button class="type-opt" data-val="Theatre">🎭 Theatre</button>
+            <button class="type-opt" data-val="Dance">💃 Dance</button>
+            <button class="type-opt" data-val="Exhibition">🖼 Exhibition</button>
+            <button class="type-opt" data-val="Comedy">😂 Comedy</button>
+            <button class="type-opt" data-val="Opera">🎼 Opera</button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Artist / Show</label>
+          <input type="text" id="artistInput" class="form-input" placeholder="e.g. Kamasi Washington" autocomplete="off">
+          <div id="artistSuggestions" class="suggestions"></div>
+        </div>
+
+        <div class="form-group">
+          <label>Venue</label>
+          <input type="text" id="venueInput" class="form-input" placeholder="e.g. Ronnie Scott's" autocomplete="off">
+          <div id="venueSuggestions" class="suggestions"></div>
+        </div>
+
+        <div class="form-group">
+          <label>Date</label>
+          <input type="date" id="dateInput" class="form-input">
+        </div>
+
+        <div class="form-group">
+          <label>Status</label>
+          <div class="status-selector">
+            <button class="status-opt active" data-val="Past">Past event</button>
+            <button class="status-opt" data-val="Booked">Booked</button>
+            <button class="status-opt" data-val="Interested">Interested</button>
+          </div>
+        </div>
+
+        <div id="attendeesGroup" class="form-group">
+          <label>Who attended</label>
+          <div class="attendee-selector">
+            <button class="attendee-opt" data-val="nick">Nick</button>
+            <button class="attendee-opt" data-val="denise">Denise</button>
+            <button class="attendee-opt" data-val="ben">Ben</button>
+          </div>
+        </div>
+
+        <div id="ratingsGroup" class="form-group">
+          <label>Ratings</label>
+          <div id="ratingInputs" class="rating-inputs"></div>
+        </div>
+
+        <div class="form-group">
+          <label>Notes</label>
+          <textarea id="notesInput" class="form-input" rows="3" placeholder="Anything worth remembering…"></textarea>
+        </div>
+
+        <button id="saveEventBtn" class="save-btn">Save Event</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- EVENT DETAIL MODAL -->
+  <div id="eventDetailModal" class="modal">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-header">
+        <h2 class="modal-title" id="detailTitle">Event</h2>
+        <button class="modal-close" id="closeDetailModal">✕</button>
+      </div>
+      <div class="modal-body" id="detailBody"></div>
+    </div>
+  </div>
+
+  <!-- ARTIST/VENUE PROFILE MODAL -->
+  <div id="profileModal" class="modal">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-header">
+        <h2 class="modal-title" id="profileTitle"></h2>
+        <button class="modal-close" id="closeProfileModal">✕</button>
+      </div>
+      <div class="modal-body" id="profileBody"></div>
+    </div>
+  </div>
+
+  <!-- Firebase -->
+  <script type="module" src="js/firebase-config.js"></script>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

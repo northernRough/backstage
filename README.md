@@ -2,7 +2,7 @@
 
 ## What this is
 
-A shared cultural events diary for Nick, Denise, and Ben. Log gigs, theatre, dance, exhibitions, comedy, and opera. Track what you've seen, what you've booked, and what you're interested in. Build up profiles on artists and venues over time.
+A shared cultural events diary. Log gigs, theatre, dance, exhibitions, comedy, and opera. Track what you've seen, what you've booked, and what you're interested in. Build up profiles on artists and venues over time.
 
 ---
 
@@ -49,7 +49,7 @@ const firebaseConfig = {
 1. Go to [netlify.com](https://netlify.com) → Log in
 2. Drag the entire `backstage` folder onto the deploy area
 3. Netlify gives you a URL like `https://amazing-name-123.netlify.app`
-4. Share that URL with Denise and Ben
+4. Share that URL with your group
 
 To update the app later: just drag the folder again, or connect to a GitHub repo for automatic deploys.
 
@@ -99,7 +99,7 @@ backstage/
 
 ## What's in v1
 
-- ✅ Three users: Nick (admin), Denise, Ben
+- ✅ Three users (one admin, two standard)
 - ✅ Log events: Artist + Venue + Date + Type + Who attended + Per-person ratings + Notes
 - ✅ Status: Past / Booked / Interested
 - ✅ Feed view: all past events, filterable by person and type
@@ -107,7 +107,7 @@ backstage/
 - ✅ Artist profiles: aggregate ratings, notes, full history
 - ✅ Venue profiles: aggregate ratings, venue notes (e.g. "sit in the balcony"), history
 - ✅ Autocomplete for artist/venue names
-- ✅ Admin delete (Nick only)
+- ✅ Admin-only delete
 - ✅ Import tool for existing Notes history
 
 ## What's next (v2 ideas)

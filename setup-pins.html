@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>Setup PINs & Fix Data</title></head>
+<body style="background:#0e0e0e;color:#f0ece4;font-family:monospace;padding:2rem;">
+<h2>Setting up PINs and fixing data...</h2>
+<pre id="log"></pre>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+import { getDatabase, ref, set, get, update, remove } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js";
+
+const app = initializeApp({
+  apiKey: "AIzaSyBCvrtbO1Fuvig0lhCm0_92GpoEi4xyhl0",
+  authDomain: "backstage-c3575.firebaseapp.com",
+  databaseURL: "https://backstage-c3575-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "backstage-c3575",
+  storageBucket: "backstage-c3575.firebasestorage.app",
+  messagingSenderId: "569056670551",
+  appId: "1:569056670551:web:e3aab716dc01b9ed410412"
+});
+const db = getDatabase(app);
+const log = document.getElementById('log');
+
+(async () => {
+  // 1. Set default PINs (change these!)
+  const pins = {
+    nick: '1234', denise: '1234', ben: '1234',
+    indi: '1234', liz: '1234', martin: '1234',
+    laura: '1234', rory: '1234', noelle: '1234',
+    dave: '1234', linda: '1234'
+  };
+
+  for (const [user, pin] of Object.entries(pins)) {
+    await set(ref(db, 'users/' + user + '/pin'), pin);
+    log.textContent += `✓ PIN set for ${user}\n`;
+  }
+
+  // 2. Fix noello → noelle in existing event data
+  const snap = await get(ref(db, 'events'));
+  const events = snap.val() || {};
+  let fixed = 0;
+
+  for (const [id, event] of Object.entries(events)) {
+    const updates = {};
+    if (event.attendees && event.attendees.noello) {
+      updates['attendees/noelle'] = true;
+      updates['attendees/noello'] = null;
+    }
+    if (event.ratings && event.ratings.noello != null) {
+      updates['ratings/noelle'] = event.ratings.noello;
+      updates['ratings/noello'] = null;
+    }
+    if (Object.keys(updates).length > 0) {
+      await update(ref(db, 'events/' + id), updates);
+      fixed++;
+      log.textContent += `✓ Fixed noello → noelle in: ${event.artist}\n`;
+    }
+  }
+
+  log.textContent += `\nDone! PINs set for ${Object.keys(pins).length} users. Fixed ${fixed} events.\n`;
+  log.textContent += `\n⚠️  All PINs are set to "1234" — change them in the Firebase Console at /users/{name}/pin`;
+})();
+</script>
+</body>
+</html>

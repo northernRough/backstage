@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html><head><title>Upload Data</title></head>
+<body style="background:#0e0e0e;color:#f0ece4;font-family:monospace;padding:2rem;">
+<h2>Uploading events to Firebase...</h2>
+<pre id="log"></pre>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+import { getDatabase, ref, push, set } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js";
+
+const app = initializeApp({
+  apiKey: "AIzaSyBCvrtbO1Fuvig0lhCm0_92GpoEi4xyhl0",
+  authDomain: "backstage-c3575.firebaseapp.com",
+  databaseURL: "https://backstage-c3575-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "backstage-c3575",
+  storageBucket: "backstage-c3575.firebasestorage.app",
+  messagingSenderId: "569056670551",
+  appId: "1:569056670551:web:e3aab716dc01b9ed410412"
+});
+const db = getDatabase(app);
+const log = document.getElementById('log');
+
+const events = [
+  {"artist":"The RS Story","venue":"Cadogan Hall","date":"2026-03-20","type":"Music","status":"Booked","attendees":{"nick":true,"denise":true,"liz":true,"martin":true},"ratings":{},"notes":"x4 tickets, with Liz and Martin","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Happy Mondays","venue":"Roundhouse","date":"2026-03-27","type":"Music","status":"Booked","attendees":{"nick":true,"denise":true,"ben":true},"ratings":{},"notes":"x3 tickets","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Poetry Slam Final","venue":"Roundhouse","date":"2026-04-09","type":"Other","status":"Booked","attendees":{"nick":true,"denise":true},"ratings":{},"notes":"x2 tickets","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Sumudu Jayatilaka","venue":"Ronnie Scott's Upstairs","date":"2026-04-16","type":"Music","status":"Booked","attendees":{"nick":true,"denise":true,"dave":true,"linda":true},"ratings":{},"notes":"x4 tickets, with Dave and Linda","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Ben Watts & Tracey Thorn","venue":"Union Chapel","date":"2026-05-04","type":"Music","status":"Booked","attendees":{"nick":true,"denise":true,"ben":true},"ratings":{},"notes":"x3 tickets, guest list","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Lady Blackbird","venue":"Ronnie Scott's","date":"2026-05-05","type":"Music","status":"Booked","attendees":{"nick":true,"denise":true,"ben":true,"laura":true},"ratings":{},"notes":"x4 tickets, with Ben and Laura","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Cruise","venue":"Unknown","date":"","type":"Theatre","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":10},"notes":"Extraordinary 10/10","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Everyone's Talking About Jamie","venue":"Unknown","date":"","type":"Musical","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":6},"notes":"","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"To Kill a Mockingbird","venue":"Unknown","date":"","type":"Theatre","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":8},"notes":"Rafe Spall","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Witness for the Prosecution","venue":"Unknown","date":"","type":"Theatre","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":7},"notes":"Loved the real courtroom setting","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Choir of Man","venue":"Unknown","date":"","type":"Theatre","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":10},"notes":"","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Standing at the Sky's Edge","venue":"Unknown","date":"","type":"Musical","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":10},"notes":"","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Groundhog Day","venue":"Unknown","date":"","type":"Musical","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":9},"notes":"Remarkable similarity to the film","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Cabaret","venue":"Unknown","date":"","type":"Musical","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":10},"notes":"Eddie Redmayne, Jesse Buckley","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Lyonesse","venue":"Unknown","date":"","type":"Theatre","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":6},"notes":"Kristin Scott Thomas & Lily James. Disappointing storyline","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Good","venue":"Unknown","date":"","type":"Theatre","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":8},"notes":"David Tennant","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Wish You Weren't Here","venue":"Soho Theatre","date":"","type":"Theatre","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":10},"notes":"Excellent mother/daughter play. Very engaging.","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"MJ the Musical","venue":"Prince Edward Theatre","date":"2024-03-23","type":"Musical","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":9},"notes":"Terrific talent. Carbon copy of MJ's voice and dance. Made for the fans.","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Don't. Make. Tea.","venue":"Soho Theatre","date":"2024-04-04","type":"Theatre","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":7},"notes":"Very right on.","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Boys on the Verge of Tears","venue":"Soho Theatre","date":"2024-05-15","type":"Theatre","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":8},"notes":"Excellent set in men's public toilet","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Blizzard","venue":"Soho Theatre","date":"2024-05-16","type":"Theatre","status":"Past","attendees":{"nick":true},"ratings":{"nick":6},"notes":"Went with Ian","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Via Dolorosa","venue":"Farnham Maltings","date":"2024-07-30","type":"Theatre","status":"Past","attendees":{"nick":true},"ratings":{},"notes":"With Gary H","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Boiler Room Six","venue":"Edinburgh Fringe","date":"2024-08-01","type":"Theatre","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":9},"notes":"Tom Foreman. Compelling.","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Dr Strangelove","venue":"Nöel Coward Theatre","date":"2024-10-22","type":"Theatre","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":8},"notes":"Weird but fun","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"The Devil Wears Prada","venue":"Dominion Theatre","date":"2025-03-13","type":"Musical","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":4},"notes":"Lame/weak","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"My Master Builder","venue":"Wyndham's Theatre","date":"2025-05-07","type":"Theatre","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":7},"notes":"Muddled. Not sure Ewan McGregor was right for the part.","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Stereophonic","venue":"Duke of York's Theatre","date":"2025-05-27","type":"Theatre","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":7},"notes":"Fascinating; different, dull at times (as intended to show the banality of bands)","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"My Persian Kitchen","venue":"Soho Theatre","date":"2025-10-07","type":"Theatre","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":6},"notes":"Nice but odd","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"All My Sons","venue":"Wyndham's Theatre","date":"","type":"Theatre","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":9},"notes":"Terrific. Bryan Cranston was superb. Must see more Arthur Miller.","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"English National Ballet: Forsythe Evening","venue":"Unknown","date":"","type":"Dance","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":10},"notes":"Inspiring - hip hop by ballet dancers","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Message in a Bottle","venue":"Unknown","date":"","type":"Dance","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":8},"notes":"The Arab Spring impacting a family, in dance. Emotional.","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Stories (Tap Dance)","venue":"Sadler's Wells","date":"2024-10-23","type":"Dance","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":8},"notes":"Slightly confusing story but great performances","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"The Red Shoes","venue":"Sadler's Wells","date":"2025-01-04","type":"Dance","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":8},"notes":"Matthew Bourne. Very symbolic. Some really impressive segments. Beautiful graceful dancing.","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Christian McBride & Patrice Rushen","venue":"Unknown","date":"2021-11-01","type":"Music","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":9},"notes":"Went for Patrice Rushen. CB was the guy from the Moth podcast about his love of James Brown. Two DJs as part of the band added to a terrific night.","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Arrested Development","venue":"Unknown","date":"2023-05-01","type":"Music","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":10},"notes":"Would have been 11!","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Incognito (member)","venue":"Pizza Express Jazz Club","date":"","type":"Music","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":7},"notes":"x2 visits. Ok, dull actually.","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Eddie Reader","venue":"Unknown","date":"","type":"Music","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":8},"notes":"Still terrific","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Hue & Cry","venue":"Unknown","date":"","type":"Music","status":"Past","attendees":{"nick":true},"ratings":{"nick":8},"notes":"With Mark. Brought me back to Scotland in the 90s.","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"The Charlatans","venue":"Unknown","date":"","type":"Music","status":"Past","attendees":{"nick":true,"ben":true},"ratings":{"nick":8},"notes":"Didn't know enough of the songs. Great vibe.","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"The Blow Monkeys","venue":"Unknown","date":"","type":"Music","status":"Past","attendees":{"nick":true},"ratings":{"nick":10},"notes":"With Gary H. Such a throwback to a student union.","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Stanley Clarke","venue":"Koko","date":"","type":"Music","status":"Past","attendees":{"nick":true,"denise":true,"ben":true},"ratings":{"nick":0},"notes":"Real jazz. Had to walk out. Ben and Denise liked it.","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"The Blow Monkeys","venue":"Haslemere","date":"","type":"Music","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":1},"notes":"Terrible","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Mavis Staples","venue":"Unknown","date":"2022-06-01","type":"Music","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":7},"notes":"Impressive but mostly not my gig","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Jon Cleary & The Absolute Monster Gentlemen","venue":"Ronnie Scott's","date":"2023-07-10","type":"Music","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":10},"notes":"First Ronnie Scott's experience. Terrific.","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"James Carter Organ Trio","venue":"Unknown","date":"","type":"Music","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":6},"notes":"Too jazz for me","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"MF Robots","venue":"Unknown","date":"","type":"Music","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":10},"notes":"Energy, charisma, funk vibe - perfect. Would have been 11!","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Brand New Heavies","venue":"Unknown","date":"","type":"Music","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":0},"notes":"Never again in a seated theatre. Well past their best.","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Macy Gray ft. Nicole Scherzinger","venue":"Unknown","date":"","type":"Music","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":10},"notes":"In the presence of a category icon. And then Nicole too.","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Christian McBride New Jawn","venue":"Ronnie Scott's","date":"2023-10-01","type":"Music","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":2},"notes":"Terrible - too jazzy","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Phil Lassiter","venue":"Ronnie Scott's","date":"2024-02-01","type":"Music","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":10},"notes":"Terrific and energetic. Sat at bar.","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Jocelyn Brown","venue":"Ronnie Scott's","date":"2024-02-01","type":"Music","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":5},"notes":"From back of stage. Just weird and sad.","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"James Taylor Quartet","venue":"Jazz Cafe","date":"","type":"Music","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":8},"notes":"Lots of fun","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Primal Scream (Screamadelica)","venue":"Alexandra Palace","date":"","type":"Music","status":"Past","attendees":{"nick":true},"ratings":{"nick":8},"notes":"With Steve Lemon. Terrific day out.","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"The Beat","venue":"Roundhouse","date":"","type":"Music","status":"Past","attendees":{"nick":true},"ratings":{"nick":9},"notes":"With Mark. Sadly without Ranking Roger.","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Emma Smith - She Sings Sinatra","venue":"Ronnie Scott's","date":"2024-03-24","type":"Music","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":10},"notes":"First showing of new ensemble. First time out for childhood dream songs.","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Kyoto Jazz Massive","venue":"Jazz Cafe","date":"","type":"Music","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":5},"notes":"Moments of awesome funk/house but overall disappointing. Musicians very good and tight, but vocalists only had one standout. This is what you get from DJs.","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Anderson Paak & The Free Nationals","venue":"Ronnie Scott's","date":"2024-05-26","type":"Music","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":10},"notes":"Remarkable night. Would have been 11!","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"José James","venue":"Ronnie Scott's","date":"2024-05-31","type":"Music","status":"Past","attendees":{"nick":true,"denise":true,"ben":true},"ratings":{"nick":8,"ben":10},"notes":"Too much R&B for Nick's taste but awesome vocalist. Ben and Denise gave 10/10.","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Arrested Development","venue":"Boiler Room","date":"2024-08-07","type":"Music","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":7},"notes":"Much better in Jazz Cafe venue. Too packed, too hot, rubbish view.","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Massive Attack","venue":"Bristol","date":"2024-08-25","type":"Music","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":1},"notes":"A washout","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"The The","venue":"Alexandra Palace","date":"2024-09-28","type":"Music","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":9},"notes":"Impressive band still going strong","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Turin Brakes","venue":"Farnham Maltings","date":"2024-10-25","type":"Music","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":9},"notes":"","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Paul Weller","venue":"Hammersmith Apollo","date":"2024-11-08","type":"Music","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{},"notes":"Too political and rough","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Judi Jackson","venue":"Ronnie Scott's","date":"2025-02-12","type":"Music","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":8},"notes":"Excellent voice/covers. Sounds like Ella Fitzgerald, Aretha, Julie London.","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Natalie Duncan","venue":"Ronnie Scott's","date":"2025-02-15","type":"Music","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":5},"notes":"With Tim and Loops. Ok, didn't love it.","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"W3 Funk Session","venue":"Ronnie Scott's","date":"2025-02-23","type":"Music","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":9},"notes":"Awesome bunch of guys. Very funky.","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Nils Landgren Funk Unit","venue":"Ronnie Scott's","date":"2025-03-15","type":"Music","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":8},"notes":"Super funky, super tight. Not quite Phil Lassiter level.","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Kenny Garrett","venue":"Ronnie Scott's","date":"2025-04-03","type":"Music","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":10},"notes":"Jazz gateway - inspiring, remarkable, intense. Not sure I could do it twice!","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"The Blow Monkeys & Hue & Cry","venue":"Manchester","date":"2025-04-05","type":"Music","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":8},"notes":"Good double bill with uninhibited Stockport crowd. H&C too much synth.","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"James Taylor Quartet & Yvonne Yanney","venue":"Ronnie Scott's","date":"2025-04-24","type":"Music","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":6},"notes":"Too cruise ship doing covers","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Jesús 'Aguaje' Ramos and His Buena Vista Orchestra","venue":"Royal Festival Hall","date":"2025-05-09","type":"Music","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":6},"notes":"Ok. Don't book the high boxes.","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Oz Noy Trio","venue":"Ronnie Scott's","date":"2025-07-07","type":"Music","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":3},"notes":"Rubbish. Self-indulgent jazz.","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"José James","venue":"Ronnie Scott's","date":"2025-07-08","type":"Music","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":9},"notes":"So good","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Stevie Wonder","venue":"Hyde Park","date":"2025-07-12","type":"Music","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":10},"notes":"So bloody good. Cried.","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Jon Cleary & The Absolute Monster Gentlemen","venue":"Ronnie Scott's","date":"2025-07-23","type":"Music","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":10},"notes":"Still fantastic. Went with Coulfers and Mae. x6 tickets.","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Soul Family plays the Police","venue":"Ronnie Scott's","date":"2025-08-10","type":"Music","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":8},"notes":"With Daniel","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Soul Family","venue":"Ronnie Scott's","date":"2025-08-10","type":"Music","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":7},"notes":"Sunday night. Good but a little boring.","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Ashton Jones","venue":"Ronnie Scott's","date":"2025-08-16","type":"Music","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":7},"notes":"Too much entertainment versus a class performer doing their thing.","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Philip Lassiter","venue":"Ronnie Scott's","date":"2025-08-29","type":"Music","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":8},"notes":"Very unlike first visit. Blues, Gospel, Improvisation. Brilliant at times, off at others. The guy's nuts.","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Ida Nielsen & The Funkbots","venue":"Ronnie Scott's","date":"2025-09-18","type":"Music","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":9},"notes":"Wonderful vibe. Denise's best. Prince but different.","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"MF Robots","venue":"Jazz Cafe","date":"2025-10-03","type":"Music","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":7},"notes":"Upstairs at JC isn't the same. Much better at RS.","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Mica Paris","venue":"Boisdale","date":"2025-10-01","type":"Music","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":1},"notes":"Everything wrong with it. Nice to hear those old songs, but not this way.","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Erykah Badu","venue":"Royal Albert Hall","date":"","type":"Music","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":4},"notes":"Disappointing. Had to be a fan. Better in the pit.","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"GeeJay","venue":"Islington Assembly Hall","date":"2025-11-20","type":"Music","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":8},"notes":"Loved it. Should be better known. Ben sniffily called them pop!","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Georgia Cécile - Kinda Christmas","venue":"Ronnie Scott's","date":"2025-12-10","type":"Music","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":8},"notes":"Wonderful tone, great entertainer, great band. Slightly cabaret.","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Dana Masters Duo","venue":"Ronnie Scott's Upstairs","date":"2026-02-06","type":"Music","status":"Past","attendees":{"nick":true,"denise":true,"ben":true},"ratings":{"nick":6},"notes":"Opening night. x4 tickets with Ben and Laura. Professional performer and good storyteller. Music a little bland.","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Gershwin and The American Classics","venue":"Ronnie Scott's Upstairs","date":"2026-02-09","type":"Music","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":9},"notes":"x4 tickets with Coulfers. Fantastic.","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"The Life of Jimi Hendrix with Marcus Machado","venue":"Ronnie Scott's","date":"2026-02-28","type":"Music","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":9},"notes":"Wonderful and educational. Excellent, more insightful questions.","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Tony Momrelle","venue":"Ronnie Scott's Upstairs","date":"2026-02-28","type":"Music","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":7},"notes":"With CBs on their wedding anniversary. Great Stevie voice, very Motown. Good but uninspiring.","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Luke Smith - Up Close and Personal","venue":"Ronnie Scott's Upstairs","date":"2026-03-06","type":"Music","status":"Past","attendees":{"nick":true,"denise":true,"ben":true},"ratings":{"nick":7},"notes":"Funky, gospel. Really wanted to like it more but struggled with the pure improv. Need to understand jazz more.","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Ahir Shah","venue":"Unknown","date":"","type":"Comedy","status":"Past","attendees":{"nick":true},"ratings":{"nick":8},"notes":"With Rohit. Excellent.","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Anirban Dasgupta","venue":"Unknown","date":"","type":"Comedy","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":9},"notes":"Very good","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Urooj Ashfaq","venue":"Unknown","date":"","type":"Comedy","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":8},"notes":"Good","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Leslie Liao - The Nighttime Routine Tour","venue":"Unknown","date":"","type":"Comedy","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":7},"notes":"Good but not tuned to UK audience","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Matt Forde - Work in Progress","venue":"Unknown","date":"","type":"Comedy","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":8},"notes":"First time back after bowel cancer. Used it well.","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Henning Wehn","venue":"Union Chapel","date":"","type":"Comedy","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":7},"notes":"","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Rahul Subramanian","venue":"Soho Theatre","date":"","type":"Comedy","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":4},"notes":"Weak for UK audience. Lots of shouting.","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Rob Beckett - Work in Progress","venue":"Unknown","date":"","type":"Comedy","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":8},"notes":"Very good. Natural comic.","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Arthur Smith & Phil Nice","venue":"Edinburgh Fringe","date":"2024-08-01","type":"Comedy","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":3},"notes":"Weak","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Vir Das","venue":"Edinburgh Fringe","date":"2024-08-01","type":"Comedy","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":9},"notes":"Excellent - smart, quick, challenging, sophisticated comedy.","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Connor Burns","venue":"Edinburgh Fringe","date":"2024-08-01","type":"Comedy","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":8},"notes":"Very good","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Dara Ó Briain","venue":"Soho Theatre","date":"2025-01-02","type":"Comedy","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":9},"notes":"Very natural, smart. Lovely guy.","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Ben Elton","venue":"Duke of York's Theatre","date":"2025-01-13","type":"Comedy","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":8},"notes":"Just what you'd expect - sophisticated grumpy old man","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"James Acaster","venue":"Soho Theatre","date":"2025-07-30","type":"Comedy","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":9},"notes":"Genius","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"The Moth","venue":"Unknown","date":"","type":"Other","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":9},"notes":"","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Making a Murderer","venue":"Unknown","date":"","type":"Other","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":7},"notes":"","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Van Gogh Alive","venue":"Unknown","date":"","type":"Exhibition","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":6},"notes":"It's projectors. Interesting story.","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Ai Weiwei","venue":"Tate Modern","date":"","type":"Exhibition","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":8},"notes":"","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"David Hockney","venue":"The Lightroom","date":"","type":"Exhibition","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":8},"notes":"More interesting than Van Gogh","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"When Shapes Come Alive","venue":"Hayward Gallery","date":"","type":"Exhibition","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":9},"notes":"Beautiful","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Diva","venue":"V&A","date":"","type":"Exhibition","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":8},"notes":"","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Churchill War Rooms","venue":"Churchill War Rooms","date":"","type":"Exhibition","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":9},"notes":"Fascinating","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Ashok Gupta","venue":"Unknown","date":"","type":"Other","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":1},"notes":"Dull","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Gabriel Byrne","venue":"Unknown","date":"","type":"Other","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":7},"notes":"","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"David Sedaris","venue":"Unknown","date":"","type":"Other","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":7},"notes":"Better on podcasts","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Balloon Museum","venue":"Balloon Museum","date":"","type":"Exhibition","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":8},"notes":"","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Chris Wilkinson - Colour Society Gallery","venue":"Colour Society Gallery","date":"","type":"Exhibition","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":8},"notes":"Small but tremendous display of Chris Wilkinson's genius.","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"The Moth (exhibition show)","venue":"Unknown","date":"","type":"Other","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":4},"notes":"Not so good","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Civil War","venue":"IMAX","date":"","type":"Film","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":6},"notes":"Ok","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Phil Hammond & Dame Clare Gerada - Fifty Minutes to Save the NHS","venue":"Edinburgh Fringe","date":"2024-08-01","type":"Other","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":8},"notes":"Very good","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Colin Cloud (mentalist)","venue":"Edinburgh Fringe","date":"2024-08-01","type":"Other","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":9},"notes":"Fantastic","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Ben Hart (magician)","venue":"Edinburgh Fringe","date":"2024-08-01","type":"Other","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":9},"notes":"Fantastic","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Alex Love - How to Win a Pub Quiz","venue":"Edinburgh Fringe","date":"2024-08-01","type":"Other","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":9},"notes":"Excellent","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Steven Frayne (Dynamo)","venue":"Underbelly Boulevard, Edinburgh","date":"2024-08-01","type":"Other","status":"Past","attendees":{"nick":true,"denise":true},"ratings":{"nick":8},"notes":"Impressive comeback","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Just For One Day","venue":"Old Vic","date":"","type":"Musical","status":"Interested","attendees":{},"ratings":{},"notes":"","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Unknown show","venue":"Greenwich Theatre","date":"","type":"Other","status":"Interested","attendees":{},"ratings":{},"notes":"","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"The Mousetrap","venue":"Unknown","date":"","type":"Theatre","status":"Interested","attendees":{},"ratings":{},"notes":"","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Moulin Rouge","venue":"Unknown","date":"","type":"Musical","status":"Interested","attendees":{},"ratings":{},"notes":"","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"ABBA Voyage","venue":"ABBA Arena","date":"","type":"Music","status":"Interested","attendees":{},"ratings":{},"notes":"","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Unknown show","venue":"Shakespeare's Globe","date":"","type":"Theatre","status":"Interested","attendees":{},"ratings":{},"notes":"","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Dennis Severs' House","venue":"Dennis Severs' House","date":"","type":"Exhibition","status":"Interested","attendees":{},"ratings":{},"notes":"","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Museum of Brands","venue":"Museum of Brands","date":"","type":"Exhibition","status":"Interested","attendees":{},"ratings":{},"notes":"","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Old Operating Theatre Museum","venue":"Old Operating Theatre Museum","date":"","type":"Exhibition","status":"Interested","attendees":{},"ratings":{},"notes":"","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"The Cinema Museum","venue":"The Cinema Museum","date":"","type":"Exhibition","status":"Interested","attendees":{},"ratings":{},"notes":"","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Leake Street Arches","venue":"Leake Street Arches","date":"","type":"Exhibition","status":"Interested","attendees":{},"ratings":{},"notes":"","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Indian YMCA","venue":"Indian YMCA, Fitzrovia","date":"","type":"Other","status":"Interested","attendees":{},"ratings":{},"notes":"","addedBy":"nick","createdAt":1741564800000},
+  {"artist":"Postal Museum / Rail Mail","venue":"Postal Museum","date":"","type":"Exhibition","status":"Interested","attendees":{},"ratings":{},"notes":"","addedBy":"nick","createdAt":1741564800000}
+];
+
+(async () => {
+  let success = 0;
+  let failed = 0;
+  for (const event of events) {
+    try {
+      await push(ref(db, 'events'), event);
+      success++;
+      log.textContent += `✓ ${event.artist} @ ${event.venue}\n`;
+    } catch (err) {
+      failed++;
+      log.textContent += `✗ ${event.artist}: ${err.message}\n`;
+    }
+  }
+  log.textContent += `\nDone: ${success} uploaded, ${failed} failed.`;
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>Fix Data</title></head>
+<body style="background:#0e0e0e;color:#f0ece4;font-family:monospace;padding:2rem;">
+<h2>Fixing character encoding and setting PINs...</h2>
+<pre id="log"></pre>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+import { getDatabase, ref, set, get, update } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js";
+
+const app = initializeApp({
+  apiKey: "AIzaSyBCvrtbO1Fuvig0lhCm0_92GpoEi4xyhl0",
+  authDomain: "backstage-c3575.firebaseapp.com",
+  databaseURL: "https://backstage-c3575-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "backstage-c3575",
+  storageBucket: "backstage-c3575.firebasestorage.app",
+  messagingSenderId: "569056670551",
+  appId: "1:569056670551:web:e3aab716dc01b9ed410412"
+});
+const db = getDatabase(app);
+const log = document.getElementById('log');
+
+// Exact artist/venue name replacements
+const nameReplacements = {
+  // Try various garbled forms of each name
+};
+
+function fixString(str) {
+  if (!str) return str;
+  // Fix double-encoded UTF-8: try to decode Ã+next char patterns
+  // Ã© → é, Ã³ → ó, Ã¶ → ö, Ã± → ñ, Ã" → Ó, Ã¼ → ü, Ã¨ → è, Ã‰ → É, Ãº → ú
+  const replacements = [
+    [/Ã©/g, 'é'],
+    [/Ã¨/g, 'è'],
+    [/Ã³/g, 'ó'],
+    [/Ã¶/g, 'ö'],
+    [/Ã±/g, 'ñ'],
+    [/Ã¼/g, 'ü'],
+    [/Ãº/g, 'ú'],
+    [/Ã\u0093/g, 'Ó'],
+    [/Ã"/g, 'Ó'],
+    [/Ã‰/g, 'É'],
+    [/Ã\u00ab/g, 'ë'],
+    [/Ã«/g, 'ë'],
+    [/Ã¤/g, 'ä'],
+    [/Ã¡/g, 'á'],
+    [/Ã­/g, 'í'],
+  ];
+  for (const [pattern, replacement] of replacements) {
+    str = str.replace(pattern, replacement);
+  }
+  return str;
+}
+
+(async () => {
+  // 1. Set PINs
+  const pins = {
+    nick: '1234', denise: '1234', ben: '1234',
+    indi: '1234', liz: '1234', martin: '1234',
+    laura: '1234', rory: '1234', noelle: '1234',
+    dave: '1234', linda: '1234'
+  };
+
+  for (const [user, pin] of Object.entries(pins)) {
+    await set(ref(db, 'users/' + user + '/pin'), pin);
+    log.textContent += `\u2713 PIN set for ${user}\n`;
+  }
+
+  // 2. Fix character encoding in events
+  const snap = await get(ref(db, 'events'));
+  const events = snap.val() || {};
+  let fixed = 0;
+
+  for (const [id, event] of Object.entries(events)) {
+    const updates = {};
+    const fixedArtist = fixString(event.artist);
+    const fixedVenue = fixString(event.venue);
+    const fixedNotes = fixString(event.notes);
+
+    if (fixedArtist !== event.artist) {
+      updates.artist = fixedArtist;
+      log.textContent += `  artist: "${event.artist}" → "${fixedArtist}"\n`;
+    }
+    if (fixedVenue !== event.venue) {
+      updates.venue = fixedVenue;
+      log.textContent += `  venue: "${event.venue}" → "${fixedVenue}"\n`;
+    }
+    if (fixedNotes !== event.notes) {
+      updates.notes = fixedNotes;
+      log.textContent += `  notes fixed\n`;
+    }
+
+    // Also fix noello → noelle
+    if (event.attendees && event.attendees.noello) {
+      updates['attendees/noelle'] = true;
+      updates['attendees/noello'] = null;
+    }
+    if (event.ratings && event.ratings.noello != null) {
+      updates['ratings/noelle'] = event.ratings.noello;
+      updates['ratings/noello'] = null;
+    }
+
+    if (Object.keys(updates).length > 0) {
+      await update(ref(db, 'events/' + id), updates);
+      fixed++;
+      log.textContent += `\u2713 Fixed: ${fixedArtist || event.artist}\n`;
+    }
+  }
+
+  // 3. Log any remaining events with non-ASCII chars for manual review
+  log.textContent += `\n--- Remaining non-ASCII names (check these) ---\n`;
+  const snap2 = await get(ref(db, 'events'));
+  const events2 = snap2.val() || {};
+  for (const [id, event] of Object.entries(events2)) {
+    if (event.artist && /[^\x00-\x7F]/.test(event.artist)) {
+      log.textContent += `  ${event.artist}\n`;
+    }
+    if (event.venue && /[^\x00-\x7F]/.test(event.venue)) {
+      log.textContent += `  venue: ${event.venue}\n`;
+    }
+  }
+
+  log.textContent += `\nDone! PINs set for ${Object.keys(pins).length} users. Fixed ${fixed} events.`;
+  log.textContent += `\n\n\u26a0\ufe0f  All PINs are set to "1234" — change them in Firebase Console at /users/{name}/pin`;
+})();
+</script>
+</body>
+</html>

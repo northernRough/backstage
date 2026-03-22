@@ -1,0 +1,25 @@
+{
+  "name": "backstage",
+  "version": "1.0.0",
+  "description": "A shared cultural events diary. Log gigs, theatre, dance, exhibitions, comedy, and opera. Track what you've seen, what you've booked, and what you're interested in. Build up profiles on artists and venues over time.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/northernRough/backstage.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/northernRough/backstage/issues"
+  },
+  "homepage": "https://github.com/northernRough/backstage#readme",
+  "dependencies": {
+    "imapflow": "^1.2.13",
+    "mailparser": "^3.9.4"
+  }
+}

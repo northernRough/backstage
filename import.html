@@ -69,18 +69,30 @@ Hamilton — Victoria Palace Theatre — 14 Feb 2020 — 5
 ..."></textarea>
     <label>Default event type for pasted events</label>
     <select id="defaultType">
-      <option value="Gig">Gig / Concert</option>
+      <option value="Music">Music</option>
       <option value="Theatre">Theatre</option>
+      <option value="Musical">Musical</option>
       <option value="Dance">Dance / Ballet</option>
-      <option value="Exhibition">Exhibition</option>
       <option value="Comedy">Comedy</option>
-      <option value="Opera">Opera / Classical</option>
+      <option value="Film">Film</option>
+      <option value="Exhibition">Exhibition</option>
+      <option value="Festival">Festival</option>
+      <option value="Classical">Classical</option>
+      <option value="Other">Other</option>
     </select>
     <label>Who attended (default — can be changed per event)</label>
     <div style="display:flex;gap:0.5rem;margin-bottom:1rem;">
       <button class="attendee-toggle btn-secondary" data-user="nick" style="padding:0.4rem 1rem;border-radius:20px;">Nick</button>
       <button class="attendee-toggle btn-secondary" data-user="denise" style="padding:0.4rem 1rem;border-radius:20px;">Denise</button>
       <button class="attendee-toggle btn-secondary" data-user="ben" style="padding:0.4rem 1rem;border-radius:20px;">Ben</button>
+      <button class="attendee-toggle btn-secondary" data-user="indi" style="padding:0.4rem 1rem;border-radius:20px;">Indi</button>
+      <button class="attendee-toggle btn-secondary" data-user="liz" style="padding:0.4rem 1rem;border-radius:20px;">Liz</button>
+      <button class="attendee-toggle btn-secondary" data-user="martin" style="padding:0.4rem 1rem;border-radius:20px;">Martin</button>
+      <button class="attendee-toggle btn-secondary" data-user="laura" style="padding:0.4rem 1rem;border-radius:20px;">Laura</button>
+      <button class="attendee-toggle btn-secondary" data-user="rory" style="padding:0.4rem 1rem;border-radius:20px;">Rory</button>
+      <button class="attendee-toggle btn-secondary" data-user="noelle" style="padding:0.4rem 1rem;border-radius:20px;">Noelle</button>
+      <button class="attendee-toggle btn-secondary" data-user="dave" style="padding:0.4rem 1rem;border-radius:20px;">Dave</button>
+      <button class="attendee-toggle btn-secondary" data-user="linda" style="padding:0.4rem 1rem;border-radius:20px;">Linda</button>
     </div>
     <button class="btn-primary" onclick="parseInput()">Parse & Preview</button>
     <div id="bulkPreview" class="preview"></div>
@@ -107,12 +119,15 @@ Hamilton — Victoria Palace Theatre — 14 Feb 2020 — 5
       <div>
         <label>Type</label>
         <select id="mType">
-          <option value="Gig">Gig / Concert</option>
+          <option value="Music">Music</option>
           <option value="Theatre">Theatre</option>
+          <option value="Musical">Musical</option>
           <option value="Dance">Dance / Ballet</option>
-          <option value="Exhibition">Exhibition</option>
           <option value="Comedy">Comedy</option>
-          <option value="Opera">Opera / Classical</option>
+          <option value="Film">Film</option>
+          <option value="Exhibition">Exhibition</option>
+          <option value="Festival">Festival</option>
+          <option value="Classical">Classical</option>
         </select>
       </div>
     </div>

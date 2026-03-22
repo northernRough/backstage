@@ -18,24 +18,13 @@
     <div class="login-bg"></div>
     <div class="login-content">
       <div class="login-header">
-        <div class="login-logo">◈</div>
-        <h1 class="login-title">backstage</h1>
+        <h1 class="login-title"><span class="logo-b">b</span>ackstage</h1>
         <p class="login-sub">Who's logging in?</p>
       </div>
-      <div class="user-select">
-        <button class="user-btn" data-user="nick">
-          <span class="user-initial">N</span>
-          <span class="user-name">Nick</span>
-          <span class="user-role">Admin</span>
-        </button>
-        <button class="user-btn" data-user="denise">
-          <span class="user-initial">D</span>
-          <span class="user-name">Denise</span>
-        </button>
-        <button class="user-btn" data-user="ben">
-          <span class="user-initial">B</span>
-          <span class="user-name">Ben</span>
-        </button>
+      <div class="name-entry">
+        <input type="text" id="nameInput" class="form-input name-input" placeholder="Enter your name" autocomplete="off" autocapitalize="words">
+        <button id="nameLoginBtn" class="pin-login-btn">Log in</button>
+        <div id="loginError" class="pin-error"></div>
       </div>
     </div>
   </div>
@@ -46,12 +35,19 @@
     <!-- HEADER -->
     <header class="app-header">
       <div class="header-left">
-        <span class="header-logo">◈</span>
-        <span class="header-title">backstage</span>
+        <span class="header-title"><span class="logo-b">b</span>ackstage</span>
       </div>
       <div class="header-right">
+        <div id="impersonateWrap" class="impersonate-wrap" style="display:none;">
+          <select id="impersonateSelect" class="impersonate-select"></select>
+        </div>
         <span id="currentUserBadge" class="user-badge"></span>
-        <button id="logoutBtn" class="icon-btn" title="Switch user">⇄</button>
+        <div class="notif-wrap">
+          <button id="notifBtn" class="icon-btn" title="Notifications">🔔<span id="notifBadge" class="notif-badge" style="display:none;">0</span></button>
+          <div id="notifPanel" class="notif-panel"></div>
+        </div>
+        <button id="settingsBtn" class="icon-btn" title="Settings">⚙</button>
+        <button id="logoutBtn" class="icon-btn" title="Log out">⏻</button>
       </div>
     </header>
 
@@ -59,27 +55,33 @@
     <nav class="tab-nav">
       <button class="tab-btn active" data-tab="feed">Feed</button>
       <button class="tab-btn" data-tab="upcoming">Upcoming</button>
-      <button class="tab-btn" data-tab="artists">Artists</button>
+      <button class="tab-btn" data-tab="suggested">Suggested</button>
+      <button class="tab-btn" data-tab="artists">Shows</button>
       <button class="tab-btn" data-tab="venues">Venues</button>
     </nav>
 
     <!-- FEED TAB -->
     <div id="tab-feed" class="tab-content active">
       <div class="tab-toolbar">
-        <div class="filter-row">
-          <button class="filter-chip active" data-filter="all">All</button>
-          <button class="filter-chip" data-filter="nick">Nick</button>
-          <button class="filter-chip" data-filter="denise">Denise</button>
-          <button class="filter-chip" data-filter="ben">Ben</button>
+        <div class="filter-row" id="feedFilterRow">
+          <button class="filter-chip active" data-filter="all">Group</button>
         </div>
         <div class="type-filter-row">
           <button class="type-chip active" data-type="all">All types</button>
-          <button class="type-chip" data-type="Gig">Gigs</button>
+          <button class="type-chip" data-type="Music">Music</button>
           <button class="type-chip" data-type="Theatre">Theatre</button>
+          <button class="type-chip" data-type="Musical">Musical</button>
           <button class="type-chip" data-type="Dance">Dance</button>
-          <button class="type-chip" data-type="Exhibition">Exhibition</button>
           <button class="type-chip" data-type="Comedy">Comedy</button>
-          <button class="type-chip" data-type="Opera">Opera</button>
+          <button class="type-chip" data-type="Film">Film</button>
+          <button class="type-chip" data-type="Exhibition">Exhibition</button>
+          <button class="type-chip" data-type="Festival">Festival</button>
+          <button class="type-chip" data-type="Classical">Classical</button>
+          <button class="type-chip" data-type="Other">Other</button>
+        </div>
+        <div class="search-sort-row" style="margin-top:0.5rem;">
+          <input type="text" id="feedSearch" class="search-input" placeholder="Search events…">
+          <button id="feedSortBtn" class="sort-toggle active" data-sort="date">Latest</button>
         </div>
       </div>
       <div id="feedList" class="event-list"></div>
@@ -93,14 +95,57 @@
           <button class="status-chip" data-status="Booked">Booked</button>
           <button class="status-chip" data-status="Interested">Interested</button>
         </div>
+        <div class="search-sort-row" style="margin-top:0.5rem;">
+          <input type="text" id="upcomingSearch" class="search-input" placeholder="Search upcoming…">
+        </div>
       </div>
       <div id="upcomingList" class="event-list"></div>
+    </div>
+
+    <!-- SUGGESTED TAB -->
+    <div id="tab-suggested" class="tab-content">
+      <div class="tab-toolbar">
+        <div class="type-filter-row">
+          <button class="suggested-type-chip active" data-stype="all">All types</button>
+          <button class="suggested-type-chip" data-stype="Music">Music</button>
+          <button class="suggested-type-chip" data-stype="Theatre">Theatre</button>
+          <button class="suggested-type-chip" data-stype="Musical">Musical</button>
+          <button class="suggested-type-chip" data-stype="Dance">Dance</button>
+          <button class="suggested-type-chip" data-stype="Comedy">Comedy</button>
+          <button class="suggested-type-chip" data-stype="Film">Film</button>
+          <button class="suggested-type-chip" data-stype="Exhibition">Exhibition</button>
+          <button class="suggested-type-chip" data-stype="Festival">Festival</button>
+          <button class="suggested-type-chip" data-stype="Classical">Classical</button>
+          <button class="suggested-type-chip" data-stype="Other">Other</button>
+        </div>
+        <div class="search-sort-row" style="margin-top:0.5rem;">
+          <input type="text" id="suggestedSearch" class="search-input" placeholder="Search suggestions…">
+        </div>
+      </div>
+      <div id="suggestedList" class="event-list"></div>
     </div>
 
     <!-- ARTISTS TAB -->
     <div id="tab-artists" class="tab-content">
       <div class="tab-toolbar">
-        <input type="text" id="artistSearch" class="search-input" placeholder="Search artists…">
+        <div class="type-filter-row" id="showTypeFilterRow">
+          <button class="show-type-chip" data-showtype="now">Now</button>
+          <button class="show-type-chip active" data-showtype="all">All types</button>
+          <button class="show-type-chip" data-showtype="Music">Music</button>
+          <button class="show-type-chip" data-showtype="Theatre">Theatre</button>
+          <button class="show-type-chip" data-showtype="Musical">Musical</button>
+          <button class="show-type-chip" data-showtype="Dance">Dance</button>
+          <button class="show-type-chip" data-showtype="Comedy">Comedy</button>
+          <button class="show-type-chip" data-showtype="Film">Film</button>
+          <button class="show-type-chip" data-showtype="Exhibition">Exhibition</button>
+          <button class="show-type-chip" data-showtype="Festival">Festival</button>
+          <button class="show-type-chip" data-showtype="Classical">Classical</button>
+          <button class="show-type-chip" data-showtype="Other">Other</button>
+        </div>
+        <div class="search-sort-row" style="margin-top:0.5rem;">
+          <input type="text" id="artistSearch" class="search-input" placeholder="Search shows…">
+          <button id="artistSortBtn" class="sort-toggle" data-sort="alpha">A-Z</button>
+        </div>
       </div>
       <div id="artistList" class="profile-list"></div>
     </div>
@@ -108,7 +153,10 @@
     <!-- VENUES TAB -->
     <div id="tab-venues" class="tab-content">
       <div class="tab-toolbar">
-        <input type="text" id="venueSearch" class="search-input" placeholder="Search venues…">
+        <div class="search-sort-row">
+          <input type="text" id="venueSearch" class="search-input" placeholder="Search venues…">
+          <button id="venueSortBtn" class="sort-toggle" data-sort="alpha">A-Z</button>
+        </div>
       </div>
       <div id="venueList" class="profile-list"></div>
     </div>
@@ -130,12 +178,16 @@
         <div class="form-group">
           <label>Type</label>
           <div class="type-selector">
-            <button class="type-opt active" data-val="Gig">🎵 Gig</button>
+            <button class="type-opt active" data-val="Music">🎵 Music</button>
             <button class="type-opt" data-val="Theatre">🎭 Theatre</button>
+            <button class="type-opt" data-val="Musical">🎶 Musical</button>
             <button class="type-opt" data-val="Dance">💃 Dance</button>
-            <button class="type-opt" data-val="Exhibition">🖼 Exhibition</button>
             <button class="type-opt" data-val="Comedy">😂 Comedy</button>
-            <button class="type-opt" data-val="Opera">🎼 Opera</button>
+            <button class="type-opt" data-val="Film">🎬 Film</button>
+            <button class="type-opt" data-val="Exhibition">🖼 Exhibition</button>
+            <button class="type-opt" data-val="Festival">🎪 Festival</button>
+            <button class="type-opt" data-val="Classical">🎼 Classical</button>
+            <button class="type-opt" data-val="Other">◈ Other</button>
           </div>
         </div>
 
@@ -159,18 +211,26 @@
         <div class="form-group">
           <label>Status</label>
           <div class="status-selector">
-            <button class="status-opt active" data-val="Past">Past event</button>
+            <button class="status-opt active" data-val="Past">Seen</button>
             <button class="status-opt" data-val="Booked">Booked</button>
             <button class="status-opt" data-val="Interested">Interested</button>
           </div>
         </div>
 
         <div id="attendeesGroup" class="form-group">
-          <label>Who attended</label>
+          <label id="attendeesLabel">Who attended</label>
           <div class="attendee-selector">
             <button class="attendee-opt" data-val="nick">Nick</button>
             <button class="attendee-opt" data-val="denise">Denise</button>
             <button class="attendee-opt" data-val="ben">Ben</button>
+            <button class="attendee-opt" data-val="indi">Indi</button>
+            <button class="attendee-opt" data-val="liz">Liz</button>
+            <button class="attendee-opt" data-val="martin">Martin</button>
+            <button class="attendee-opt" data-val="laura">Laura</button>
+            <button class="attendee-opt" data-val="rory">Rory</button>
+            <button class="attendee-opt" data-val="noelle">Noelle</button>
+            <button class="attendee-opt" data-val="dave">Dave</button>
+            <button class="attendee-opt" data-val="linda">Linda</button>
           </div>
         </div>
 
@@ -180,8 +240,18 @@
         </div>
 
         <div class="form-group">
-          <label>Notes</label>
-          <textarea id="notesInput" class="form-input" rows="3" placeholder="Anything worth remembering…"></textarea>
+          <label>About the artist / show</label>
+          <textarea id="artistNotesInput" class="form-input" rows="2" placeholder="Thoughts on the performance…"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label>Personal notes (private to your group)</label>
+          <textarea id="personalNotesInput" class="form-input" rows="2" placeholder="Your own memories…"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label>About the venue</label>
+          <textarea id="venueNotesInput" class="form-input" rows="2" placeholder="Seating, sound, tips…"></textarea>
         </div>
 
         <button id="saveEventBtn" class="save-btn">Save Event</button>
@@ -201,6 +271,36 @@
     </div>
   </div>
 
+  <!-- ADD VENUE MODAL -->
+  <div id="addVenueModal" class="modal">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-header">
+        <h2 class="modal-title">Add Venue</h2>
+        <button class="modal-close" id="closeAddVenue">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Venue name</label>
+          <input type="text" class="form-input" id="addVenueName" placeholder="e.g. Ronnie Scott's">
+        </div>
+        <div class="form-group">
+          <label>Address</label>
+          <input type="text" class="form-input" id="addVenueAddress" placeholder="e.g. 47 Frith St, London W1D 4HT">
+        </div>
+        <div class="form-group">
+          <label>Booking URL</label>
+          <input type="text" class="form-input" id="addVenueBookingUrl" placeholder="https://...">
+        </div>
+        <div class="form-group">
+          <label>Notes</label>
+          <textarea class="form-textarea" id="addVenueNotesInput" rows="2" placeholder="Any tips about this venue…"></textarea>
+        </div>
+        <button class="save-btn" id="saveNewVenueBtn">Save Venue</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ARTIST/VENUE PROFILE MODAL -->
   <div id="profileModal" class="modal">
     <div class="modal-sheet">
@@ -210,6 +310,164 @@
         <button class="modal-close" id="closeProfileModal">✕</button>
       </div>
       <div class="modal-body" id="profileBody"></div>
+    </div>
+  </div>
+
+  <!-- SETTINGS MODAL -->
+  <div id="settingsModal" class="modal">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-header">
+        <h2 class="modal-title">Settings</h2>
+        <button class="modal-close" id="closeSettingsModal">✕</button>
+      </div>
+      <div class="modal-body" id="settingsBody">
+        <details class="settings-section settings-foldable" id="interestsFolder">
+          <summary class="settings-label settings-toggle">Your Cultural Interests <span class="fold-arrow">›</span></summary>
+          <p class="settings-hint"><span class="info-dot">i<span class="info-tip">Describe your tastes in music, theatre, art and more. Our AI uses this alongside your past ratings and comments to find events you'll enjoy — the more detail you give, the better the suggestions.</span></span> Tell us what you love — our AI uses this to find events for you.</p>
+          <textarea id="interestsInput" class="form-input" rows="4" placeholder="e.g. I love contemporary jazz, experimental theatre, and immersive exhibitions. I'm a fan of artists like Kamasi Washington and Nubya Garcia. I prefer intimate venues with great sound over large arenas."></textarea>
+          <button class="save-notes-btn" id="saveInterests">Save interests</button>
+        </details>
+        <details class="settings-section settings-foldable">
+          <summary class="settings-label settings-toggle" style="justify-content:center;">App Controls <span class="fold-arrow">›</span></summary>
+          <div class="form-group" style="margin-bottom:0.8rem;">
+            <label style="margin-bottom:0.4rem;display:block;"><span class="info-dot">i<span class="info-tip">Sets which music service opens when you tap Play on an event card. Links go to the artist's page on your chosen service.</span></span> Music Player</label>
+            <div class="status-selector">
+              <button class="status-opt active" data-player="apple" id="playerApple">Apple Music</button>
+              <button class="status-opt" data-player="spotify" id="playerSpotify">Spotify</button>
+            </div>
+          </div>
+          <hr class="settings-divider">
+          <div class="form-group" style="margin-bottom:0.8rem;">
+            <label style="margin-bottom:0.4rem;display:block;"><span class="info-dot">i<span class="info-tip">Sets which map app opens when you tap the pin on a venue card.</span></span> Map App</label>
+            <div class="status-selector">
+              <button class="status-opt active" data-mapapp="apple">Apple Maps</button>
+              <button class="status-opt" data-mapapp="google">Google Maps</button>
+            </div>
+          </div>
+        </details>
+        <details class="settings-section settings-foldable">
+          <summary class="settings-label settings-toggle">Privacy Controls <span class="fold-arrow">›</span></summary>
+          <div class="form-group" style="margin-bottom:0.8rem;">
+            <label style="margin-bottom:0.4rem;display:block;"><span class="info-dot">i<span class="info-tip">Controls who can see your ratings, personal notes, and comments. Group members see your individual scores; others outside your groups only see an average sentiment.</span></span> Share my activity with:</label>
+            <div class="status-selector">
+              <button class="status-opt" data-sharescope="private">No one</button>
+              <button class="status-opt active" data-sharescope="group">My Groups</button>
+              <button class="status-opt" data-sharescope="everyone">Everyone</button>
+            </div>
+          </div>
+          <hr class="settings-divider">
+          <div class="form-group" style="margin-bottom:0.8rem;">
+            <label style="margin-bottom:0.4rem;display:block;"><span class="info-dot">i<span class="info-tip">When sharing is on, choose whether your name appears on your comments or they are shown anonymously.</span></span> Comment attribution:</label>
+            <div class="status-selector">
+              <button class="status-opt active" data-commentattrib="named">Named</button>
+              <button class="status-opt" data-commentattrib="anon">Anonymous</button>
+            </div>
+          </div>
+          <hr class="settings-divider">
+          <div class="form-group" style="margin-bottom:0.8rem;">
+            <label style="margin-bottom:0.4rem;display:block;"><span class="info-dot">i<span class="info-tip">Share: events found by your email scans appear in other users' Suggested tab. Private: only you see your scan results — the suggest button below is also hidden.</span></span> Share my finds:</label>
+            <div class="status-selector">
+              <button class="status-opt active" data-sharesug="share">Share</button>
+              <button class="status-opt" data-sharesug="private">Private</button>
+            </div>
+          </div>
+          <hr class="settings-divider">
+          <div class="form-group" style="margin-bottom:0.8rem;" id="suggestScopeGroup">
+            <label style="margin-bottom:0.4rem;display:block;"><span class="info-dot">i<span class="info-tip">Choose who you can suggest events to. My Groups: people in your groups. Everyone: all Backstage users.</span></span> Suggest events to:</label>
+            <div class="status-selector">
+              <button class="status-opt active" data-suggestscope="group">My Groups</button>
+              <button class="status-opt" data-suggestscope="everyone">Everyone</button>
+            </div>
+          </div>
+          <hr class="settings-divider">
+          <div class="form-group">
+            <label style="margin-bottom:0.4rem;display:block;"><span class="info-dot">i<span class="info-tip">Choose whether to see suggestions from all users' email scans, or only events found from your own subscriptions.</span></span> Source suggestions from:</label>
+            <div class="status-selector">
+              <button class="status-opt active" data-source="everyone">Everyone</button>
+              <button class="status-opt" data-source="mine">My subscriptions only</button>
+            </div>
+          </div>
+        </details>
+        <details class="settings-section settings-foldable">
+          <summary class="settings-label settings-toggle">Email Event Scanner <span class="fold-arrow">›</span></summary>
+          <p class="settings-hint"><span class="info-dot">i<span class="info-tip">Connects to your email to scan venue newsletters for upcoming events. Found events appear in your Suggested tab. Scans run automatically at midday each day, or you can scan manually. Requires an app-specific password (not your main password).</span></span> Scans your inbox for venue newsletters and booking confirmations.</p>
+          <div class="form-group">
+            <label>Email provider</label>
+            <div class="status-selector">
+              <button class="status-opt active" data-provider="icloud" id="providerIcloud">iCloud</button>
+              <button class="status-opt" data-provider="gmail" id="providerGmail">Gmail</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Email address</label>
+            <input type="email" id="imapEmailInput" class="form-input" placeholder="you@icloud.com">
+          </div>
+          <div class="form-group">
+            <label>App-specific password</label>
+            <input type="password" id="imapPasswordInput" class="form-input" placeholder="xxxx-xxxx-xxxx-xxxx">
+            <p class="settings-hint" id="passwordHint" style="margin-top:0.3rem;">iCloud: <a href="https://appleid.apple.com/account/manage" target="_blank" style="color:var(--amber)">generate here</a> · Gmail: <a href="https://myaccount.google.com/apppasswords" target="_blank" style="color:var(--amber)">generate here</a></p>
+          </div>
+          <button class="save-notes-btn" id="saveImapCredentials">Save email credentials</button>
+          <div class="settings-label" style="margin-top:1rem;">Newsletter senders</div>
+          <p class="settings-hint">Venue newsletters to scan for upcoming events.</p>
+          <div id="sendersList" class="groups-list"></div>
+          <div class="sender-add-row">
+            <input type="email" id="newSenderInput" class="form-input" placeholder="e.g. members@ronniescotts.co.uk">
+            <button class="save-notes-btn" id="addSenderBtn" style="margin-top:0;white-space:nowrap;">+ Add</button>
+          </div>
+          <div class="settings-label" style="margin-top:1rem;">Ticket confirmation senders</div>
+          <p class="settings-hint">Booking/ticket email addresses to detect confirmed bookings.</p>
+          <div id="ticketSendersList" class="groups-list"></div>
+          <div class="sender-add-row">
+            <input type="email" id="newTicketSenderInput" class="form-input" placeholder="e.g. tickets@ronniescotts.co.uk">
+            <button class="save-notes-btn" id="addTicketSenderBtn" style="margin-top:0;white-space:nowrap;">+ Add</button>
+          </div>
+          <button class="summarize-btn" id="scanEmailsBtn" style="margin-top:1rem;width:100%;">✦ Scan emails now</button>
+          <div id="scanStatus" class="settings-hint" style="margin-top:0.5rem;"></div>
+        </details>
+        <details class="settings-section settings-foldable">
+          <summary class="settings-label settings-toggle">Your Groups <span class="fold-arrow">›</span></summary>
+          <p class="settings-hint"><span class="info-dot">i<span class="info-tip">People in the same group see each other's individual ratings and personal notes. Users outside your groups only see an averaged sentiment score — not your verbatim comments or individual scores.</span></span> Group members share individual ratings and notes. Others see averages only.</p>
+          <div id="groupsList" class="groups-list"></div>
+          <button id="addGroupBtn" class="add-group-btn">+ Add group</button>
+        </details>
+        <details class="settings-section settings-foldable" id="adminFolder" style="display:none;">
+          <summary class="settings-label settings-toggle">Admin Only <span class="fold-arrow">›</span></summary>
+          <div class="admin-section">
+            <div class="settings-label" style="margin-bottom:0.5rem;">Data Export / Import</div>
+            <div style="display:flex;gap:0.5rem;margin-bottom:1rem;">
+              <button class="detail-action-btn" id="exportCsvBtn">⬇ Export CSV</button>
+              <label class="detail-action-btn" style="cursor:pointer;text-align:center;" id="importCsvLabel">⬆ Import CSV<input type="file" id="importCsvInput" accept=".csv" style="display:none;"></label>
+            </div>
+            <div id="importStatus" class="settings-hint"></div>
+            <div class="settings-label" style="margin-bottom:0.5rem;">Usage Dashboard</div>
+            <div class="admin-period-selector" style="margin-bottom:0.75rem;">
+              <button class="filter-chip active" data-period="month">Month</button>
+              <button class="filter-chip" data-period="week">Week</button>
+              <button class="filter-chip" data-period="day">Today</button>
+            </div>
+            <div id="adminDashboard" class="admin-dashboard"></div>
+          </div>
+        </details>
+      </div>
+    </div>
+  </div>
+
+  <!-- INTERESTS ONBOARDING MODAL -->
+  <div id="onboardingModal" class="modal">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-header">
+        <h2 class="modal-title">Welcome to backstage</h2>
+        <button class="modal-close" id="closeOnboarding">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="onboarding-text">Tell us about your cultural interests so we can suggest events you'll enjoy.</p>
+        <textarea id="onboardingInterests" class="form-input" rows="5" placeholder="e.g. I love contemporary jazz, experimental theatre, and immersive exhibitions. I'm a fan of artists like Kamasi Washington and Nubya Garcia. I prefer intimate venues with great sound over large arenas."></textarea>
+        <button class="save-btn" id="saveOnboarding">Get started</button>
+        <button class="skip-btn" id="skipOnboarding">Skip for now</button>
+      </div>
     </div>
   </div>
 

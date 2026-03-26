@@ -2611,7 +2611,7 @@ openModal = function(modal) {
       <div class="install-banner-icon">📲</div>
       <div class="install-banner-text">
         <div class="install-banner-title">Install backstage</div>
-        <div class="install-banner-instructions">Tap ${isIOS ? shareIcon + ' <strong>Share</strong>' : '<strong>⋮</strong> menu'} then <strong>Add to Home Screen</strong></div>
+        <div class="install-banner-instructions">Tap ${isIOS ? '<strong>⋯</strong> then ' + shareIcon + ' <strong>Share</strong>' : '<strong>⋮</strong> menu'} then <strong>Add to Home Screen</strong></div>
       </div>
       <button class="install-banner-close" id="dismissInstall">✕</button>
     </div>`;

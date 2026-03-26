@@ -293,11 +293,14 @@ body {
   display: flex; align-items: stretch;
 }
 .swipe-btn {
-  width: 64px; border: none; cursor: pointer;
-  font-family: var(--font-body); font-size: 0.72rem;
-  font-weight: 600; text-transform: uppercase;
-  letter-spacing: 0.05em; color: #fff;
+  width: 60px; border: none; cursor: pointer;
+  font-family: var(--font-body); font-size: 0.65rem;
+  font-weight: 500; text-transform: uppercase;
+  letter-spacing: 0.03em; color: #fff;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 0.2rem;
 }
+.swipe-btn .swipe-icon { font-size: 1.1rem; line-height: 1; }
 .swipe-booked { background: #3d8b52; }
 .swipe-interested { background: #4a78c4; }
 .swipe-seen { background: #3a6ab0; }

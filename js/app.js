@@ -730,9 +730,9 @@ function upcomingCardHtml(id, e) {
   return `
     <div class="swipe-container" data-id="${id}">
       <div class="swipe-actions">
-        <button class="swipe-btn swipe-booked" data-id="${id}">Booked</button>
-        <button class="swipe-btn swipe-seen" data-id="${id}">Seen</button>
-        <button class="swipe-btn swipe-full" data-id="${id}">Full</button>
+        <button class="swipe-btn swipe-booked" data-id="${id}"><span class="swipe-icon">🎟</span>Booked</button>
+        <button class="swipe-btn swipe-seen" data-id="${id}"><span class="swipe-icon">✓</span>Seen</button>
+        <button class="swipe-btn swipe-full" data-id="${id}"><span class="swipe-icon">✕</span>Full</button>
       </div>
       <div class="event-card swipe-card" data-id="${id}">
         <div class="event-top">
@@ -795,9 +795,9 @@ function renderSuggested() {
   list.innerHTML = events.map(([id, e]) => `
     <div class="swipe-container" data-id="${id}">
       <div class="swipe-actions">
-        <button class="swipe-btn swipe-interested" data-id="${id}">Interested</button>
-        <button class="swipe-btn swipe-booked" data-id="${id}">Book</button>
-        <button class="swipe-btn swipe-dismiss" data-id="${id}">Dismiss</button>
+        <button class="swipe-btn swipe-interested" data-id="${id}"><span class="swipe-icon">★</span>Want</button>
+        <button class="swipe-btn swipe-booked" data-id="${id}"><span class="swipe-icon">🎟</span>Book</button>
+        <button class="swipe-btn swipe-dismiss" data-id="${id}"><span class="swipe-icon">✕</span>Skip</button>
       </div>
       <div class="event-card swipe-card" data-id="${id}">
         <div class="event-top">

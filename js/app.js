@@ -2597,12 +2597,21 @@ openModal = function(modal) {
   if (!isMobile || isStandalone || dismissed) return;
 
   const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Mac/i.test(navigator.userAgent));
+  const isSafari = isIOS && /Safari/i.test(navigator.userAgent) && !/CriOS|FxiOS|OPiOS|EdgiOS/i.test(navigator.userAgent);
 
   const shareIcon = `<svg width="16" height="16" viewBox="0 0 50 50" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin:0 2px;"><path d="M25 33V3"/><path d="M15 13l10-10 10 10"/><path d="M10 22H6v24h38V22h-4"/></svg>`;
 
-  const instructions = isIOS
-    ? `Tap ${shareIcon} <strong>Share</strong> then <strong>Add to Home Screen</strong>`
-    : `Tap <strong>⋮</strong> menu then <strong>Install app</strong> or <strong>Add to Home Screen</strong>`;
+  let instructions, title;
+  if (isIOS && !isSafari) {
+    title = 'Open in Safari to install';
+    instructions = 'This browser can\'t add apps to your home screen. Open this page in <strong>Safari</strong> to install backstage.';
+  } else if (isIOS) {
+    title = 'Install backstage';
+    instructions = `Tap <strong>⋯</strong> then ${shareIcon} <strong>Share</strong> then <strong>Add to Home Screen</strong>`;
+  } else {
+    title = 'Install backstage';
+    instructions = `Tap <strong>⋮</strong> menu then <strong>Add to Home Screen</strong>`;
+  }
 
   const banner = document.createElement('div');
   banner.className = 'install-banner';
@@ -2610,8 +2619,8 @@ openModal = function(modal) {
     <div class="install-banner-content">
       <div class="install-banner-icon">📲</div>
       <div class="install-banner-text">
-        <div class="install-banner-title">Install backstage</div>
-        <div class="install-banner-instructions">Tap ${isIOS ? '<strong>⋯</strong> then ' + shareIcon + ' <strong>Share</strong>' : '<strong>⋮</strong> menu'} then <strong>Add to Home Screen</strong></div>
+        <div class="install-banner-title">${title}</div>
+        <div class="install-banner-instructions">${instructions}</div>
       </div>
       <button class="install-banner-close" id="dismissInstall">✕</button>
     </div>`;

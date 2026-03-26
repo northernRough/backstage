@@ -72,6 +72,9 @@ function isRealAdmin() {
 }
 
 function getGroupName(groupIdx) {
+  // Per-user nickname takes priority, then global name, then member names
+  const myNicknames = allUserPrefs[currentUser]?.groupNicknames || {};
+  if (myNicknames[groupIdx]) return myNicknames[groupIdx];
   if (groupNames[groupIdx]) return groupNames[groupIdx];
   const g = GROUPS[groupIdx];
   if (!g) return 'Group';
@@ -464,7 +467,7 @@ function renderNotifications(notifs) {
   }
   panel.innerHTML = entries.slice(0, 20).map(([id, n]) => {
     const time = n.createdAt ? new Date(n.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '';
-    return `<div class="notif-item ${n.read ? '' : 'unread'}" data-notif-id="${id}" data-venue-key="${n.venueKey || ''}" data-venue="${n.venue || ''}">
+    return `<div class="notif-item ${n.read ? '' : 'unread'}" data-notif-id="${id}" data-event-id="${n.eventId || ''}" data-venue-key="${n.venueKey || ''}" data-venue="${n.venue || ''}">
       <div class="notif-message">${n.message}</div>
       <div class="notif-time">${time}</div>
     </div>`;
@@ -475,11 +478,14 @@ function renderNotifications(notifs) {
       const nid = item.dataset.notifId;
       // Mark as read
       await update(ref(db, 'notifications/' + currentUser + '/' + nid), { read: true });
-      // Navigate to venue if applicable
-      const venueName = item.dataset.venue;
-      if (venueName) {
-        closeNotifPanel();
-        openProfile('venue', venueName);
+      closeNotifPanel();
+      // Navigate to event if available, otherwise venue
+      const eventId = item.dataset.eventId;
+      if (eventId && allEvents[eventId]) {
+        openEventDetail(eventId);
+      } else {
+        const venueName = item.dataset.venue;
+        if (venueName) openProfile('venue', venueName);
       }
     });
   });
@@ -502,6 +508,17 @@ document.addEventListener('click', (e) => {
     closeNotifPanel();
   }
 });
+
+// ===== SWIPE HINT =====
+function hintSwipe(list) {
+  const firstCard = list.querySelector('.swipe-card');
+  if (!firstCard || firstCard.classList.contains('swipe-hint-done')) return;
+  firstCard.classList.add('swipe-hint');
+  firstCard.addEventListener('animationend', () => {
+    firstCard.classList.remove('swipe-hint');
+    firstCard.classList.add('swipe-hint-done');
+  }, { once: true });
+}
 
 // ===== FEED =====
 document.getElementById('feedFilterRow').addEventListener('click', e => {
@@ -706,6 +723,7 @@ function renderUpcoming() {
       }
     });
   });
+  hintSwipe(list);
 }
 
 function upcomingCardHtml(id, e) {
@@ -845,6 +863,7 @@ function renderSuggested() {
   list.querySelectorAll('.swipe-dismiss').forEach(btn => {
     btn.addEventListener('click', async () => { if (confirm('Dismiss this suggestion?')) await remove(ref(db, 'events/' + btn.dataset.id)); });
   });
+  hintSwipe(list);
 }
 
 // ===== ARTISTS =====
@@ -2338,7 +2357,7 @@ function renderSettings() {
     return `
       <div class="group-card" data-idx="${realIdx}">
         <div class="group-header">
-          <input class="group-name-input" data-idx="${realIdx}" value="${groupNames[realIdx] || ''}" placeholder="Group ${idx + 1}">
+          <input class="group-name-input" data-idx="${realIdx}" value="${(allUserPrefs[currentUser]?.groupNicknames || {})[realIdx] || groupNames[realIdx] || ''}" placeholder="Group ${idx + 1}">
           <button class="group-delete-btn" data-idx="${realIdx}" title="Delete group">✕</button>
         </div>
         <div class="group-members">
@@ -2358,9 +2377,28 @@ function renderSettings() {
 
   // Delete group
   list.querySelectorAll('.group-delete-btn').forEach(btn => {
-    btn.addEventListener('click', async () => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
       const idx = parseInt(btn.dataset.idx);
+      const group = GROUPS[idx];
+      const memberNames = group ? group.map(u => USERS[u]?.name || u).join(', ') : '';
+      if (!confirm(`Delete this group (${memberNames})? This will remove it for all members.`)) return;
       GROUPS.splice(idx, 1);
+      // Remove per-user names for this group index and shift higher indices down
+      const allUsersSnap = await get(ref(db, 'users'));
+      const allUsersData = allUsersSnap.val() || {};
+      for (const [uid, udata] of Object.entries(allUsersData)) {
+        const names = udata?.groupNicknames;
+        if (names && typeof names === 'object') {
+          const updated = {};
+          Object.entries(names).forEach(([k, v]) => {
+            const ki = parseInt(k);
+            if (ki === idx) return; // removed
+            updated[ki > idx ? ki - 1 : ki] = v;
+          });
+          await set(ref(db, 'users/' + uid + '/groupNicknames'), Object.keys(updated).length ? updated : null);
+        }
+      }
       groupNames.splice(idx, 1);
       await saveGroups();
       renderSettings();
@@ -2391,12 +2429,21 @@ function renderSettings() {
     });
   });
 
-  // Group name editing
+  // Group name editing (per-user nicknames)
   list.querySelectorAll('.group-name-input').forEach(input => {
     input.addEventListener('change', async () => {
       const idx = parseInt(input.dataset.idx);
-      groupNames[idx] = input.value.trim();
-      await set(ref(db, 'groupNames'), groupNames);
+      const nickname = input.value.trim();
+      const nicknames = allUserPrefs[currentUser]?.groupNicknames || {};
+      if (nickname) {
+        nicknames[idx] = nickname;
+      } else {
+        delete nicknames[idx];
+      }
+      await set(ref(db, 'users/' + currentUser + '/groupNicknames'), Object.keys(nicknames).length ? nicknames : null);
+      // Update local cache
+      if (!allUserPrefs[currentUser]) allUserPrefs[currentUser] = {};
+      allUserPrefs[currentUser].groupNicknames = nicknames;
       buildFilterChips();
     });
   });

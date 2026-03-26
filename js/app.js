@@ -467,8 +467,10 @@ function renderNotifications(notifs) {
   }
   panel.innerHTML = entries.slice(0, 20).map(([id, n]) => {
     const time = n.createdAt ? new Date(n.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '';
+    const comment = n.comment ? `<div class="notif-comment">"${n.comment}"</div>` : '';
     return `<div class="notif-item ${n.read ? '' : 'unread'}" data-notif-id="${id}" data-event-id="${n.eventId || ''}" data-venue-key="${n.venueKey || ''}" data-venue="${n.venue || ''}">
       <div class="notif-message">${n.message}</div>
+      ${comment}
       <div class="notif-time">${time}</div>
     </div>`;
   }).join('');
@@ -509,7 +511,18 @@ document.addEventListener('click', (e) => {
   }
 });
 
-// ===== SWIPE HINT =====
+// ===== SWIPE HELPERS =====
+function closeAllSwipes() {
+  document.querySelectorAll('.swipe-container.swiped').forEach(c => {
+    c.classList.remove('swiped');
+    const card = c.querySelector('.swipe-card');
+    if (card) { card.style.transition = 'transform 0.25s ease'; card.style.transform = 'translateX(0)'; }
+  });
+}
+
+// Close swipes on scroll
+window.addEventListener('scroll', closeAllSwipes, { passive: true });
+
 function hintSwipe(list) {
   const firstCard = list.querySelector('.swipe-card');
   if (!firstCard || firstCard.classList.contains('swipe-hint-done')) return;
@@ -518,6 +531,39 @@ function hintSwipe(list) {
     firstCard.classList.remove('swipe-hint');
     firstCard.classList.add('swipe-hint-done');
   }, { once: true });
+}
+
+function bindSwipe(list) {
+  list.querySelectorAll('.swipe-container').forEach(container => {
+    const card = container.querySelector('.swipe-card');
+    let startX = 0, currentX = 0, swiping = false;
+    card.addEventListener('touchstart', e => {
+      closeAllSwipes();
+      startX = e.touches[0].clientX;
+      currentX = 0;
+      swiping = true;
+      card.style.transition = 'none';
+    });
+    card.addEventListener('touchmove', e => {
+      if (!swiping) return;
+      currentX = e.touches[0].clientX - startX;
+      if (currentX < 0) card.style.transform = `translateX(${Math.max(currentX, -180)}px)`;
+    });
+    card.addEventListener('touchend', () => {
+      swiping = false;
+      card.style.transition = 'transform 0.25s ease';
+      if (currentX < -60) {
+        card.style.transform = 'translateX(-180px)';
+        container.classList.add('swiped');
+      } else {
+        card.style.transform = 'translateX(0)';
+        container.classList.remove('swiped');
+      }
+    });
+    card.addEventListener('click', () => {
+      if (!container.classList.contains('swiped')) openEventDetail(container.dataset.id);
+    });
+  });
 }
 
 // ===== FEED =====
@@ -649,43 +695,7 @@ function renderUpcoming() {
   }
   list.innerHTML = events.map(([id, e]) => upcomingCardHtml(id, e)).join('');
 
-  // Swipe handling
-  list.querySelectorAll('.swipe-container').forEach(container => {
-    const card = container.querySelector('.swipe-card');
-    let startX = 0, currentX = 0, swiping = false;
-
-    card.addEventListener('touchstart', e => {
-      startX = e.touches[0].clientX;
-      currentX = 0;
-      swiping = true;
-      card.style.transition = 'none';
-    });
-    card.addEventListener('touchmove', e => {
-      if (!swiping) return;
-      currentX = e.touches[0].clientX - startX;
-      if (currentX < 0) {
-        card.style.transform = `translateX(${Math.max(currentX, -180)}px)`;
-      }
-    });
-    card.addEventListener('touchend', () => {
-      swiping = false;
-      card.style.transition = 'transform 0.25s ease';
-      if (currentX < -60) {
-        card.style.transform = 'translateX(-180px)';
-        container.classList.add('swiped');
-      } else {
-        card.style.transform = 'translateX(0)';
-        container.classList.remove('swiped');
-      }
-    });
-
-    // Tap on card opens detail
-    card.addEventListener('click', () => {
-      if (!container.classList.contains('swiped')) {
-        openEventDetail(container.dataset.id);
-      }
-    });
-  });
+  bindSwipe(list);
 
   // Action buttons
   list.querySelectorAll('.swipe-booked').forEach(btn => {
@@ -821,15 +831,7 @@ function renderSuggested() {
       </div>
     </div>`).join('');
 
-  // Swipe handling
-  list.querySelectorAll('.swipe-container').forEach(container => {
-    const card = container.querySelector('.swipe-card');
-    let startX = 0, currentX = 0, swiping = false;
-    card.addEventListener('touchstart', e => { startX = e.touches[0].clientX; currentX = 0; swiping = true; card.style.transition = 'none'; });
-    card.addEventListener('touchmove', e => { if (!swiping) return; currentX = e.touches[0].clientX - startX; if (currentX < 0) card.style.transform = `translateX(${Math.max(currentX, -180)}px)`; });
-    card.addEventListener('touchend', () => { swiping = false; card.style.transition = 'transform 0.25s ease'; if (currentX < -60) { card.style.transform = 'translateX(-180px)'; container.classList.add('swiped'); } else { card.style.transform = 'translateX(0)'; container.classList.remove('swiped'); } });
-    card.addEventListener('click', () => { if (!container.classList.contains('swiped')) openEventDetail(container.dataset.id); });
-  });
+  bindSwipe(list);
 
   // Tap badge to flip to Interested
   list.querySelectorAll('.suggested-toggle').forEach(btn => {
@@ -1455,7 +1457,7 @@ function openEventDetail(id) {
         '</div>';
     })()}
     ${(() => { const dn = displayNotes(e.venueNotes, currentUser); return dn ? `<div class="detail-notes-section"><div class="detail-notes-label">About the venue</div><div class="detail-notes">${dn}</div></div>` : ''; })()}
-    ${(e.status === 'Booked' || e.status === 'Interested') ? (() => {
+    ${(e.status === 'Booked' || e.status === 'Interested' || e.status === 'Suggested') ? (() => {
       const suggestScope = allUserPrefs[currentUser]?.suggestScope || 'group';
       const shareSug = allUserPrefs[currentUser]?.shareSuggestions || 'share';
       if (shareSug === 'private') return '';
@@ -1471,9 +1473,11 @@ function openEventDetail(id) {
     ${e.suggestedTo?.[currentUser] ? `<div class="detail-suggested-by">💡 Suggested by ${USERS[e.suggestedTo[currentUser].by]?.name || 'someone'}</div>` : ''}
     <div class="detail-actions">
       <button class="detail-action-btn" id="editFromDetail">Edit</button>
-      ${e.status !== 'Past' ? `<button class="detail-action-btn" id="markPastBtn">Mark as Past</button>` : ''}
       ${isRealAdmin() ? `<button class="detail-action-btn danger" id="deleteEventBtn">Delete</button>` : ''}
     </div>`;
+
+  // Track who we suggest to during this session
+  const pendingSuggestions = [];
 
   openModal(document.getElementById('eventDetailModal'));
 
@@ -1485,26 +1489,46 @@ function openEventDetail(id) {
     btn.addEventListener('click', async () => {
       const targetUser = btn.dataset.user;
       if (btn.classList.contains('suggested')) return;
+      pendingSuggestions.push(targetUser);
       await update(ref(db, 'events/' + id + '/suggestedTo/' + targetUser), { by: currentUser, at: Date.now() });
-      // Send notification to target user
-      const ev = allEvents[id];
-      await push(ref(db, 'notifications/' + targetUser), {
-        type: 'suggestion',
-        message: `${USERS[currentUser]?.name || currentUser} suggested "${ev?.artist || 'an event'}" to you`,
-        eventId: id,
-        from: currentUser,
-        at: Date.now(),
-        read: false
-      });
       btn.classList.add('suggested');
       btn.textContent = (USERS[targetUser]?.name || targetUser) + ' ✓';
     });
   });
 
+  // Close detail modal — prompt for suggestion comment if suggestions were made
+  const detailModal = document.getElementById('eventDetailModal');
+  const closeDetail = async () => {
+    if (pendingSuggestions.length > 0) {
+      const ev = allEvents[id];
+      const names = pendingSuggestions.map(u => USERS[u]?.name || u).join(', ');
+      const comment = prompt(`Add a note with your suggestion to ${names}?\n(Leave blank to skip)`);
+      const msgBase = `${USERS[currentUser]?.name || currentUser} suggested "${ev?.artist || 'an event'}"`;
+      const msgDetail = ev?.venue ? ` at ${ev.venue}` : '';
+      const msgComment = comment ? `\n"${comment}"` : '';
+      for (const targetUser of pendingSuggestions) {
+        await push(ref(db, 'notifications/' + targetUser), {
+          type: 'suggestion',
+          message: msgBase + msgDetail + msgComment,
+          eventId: id,
+          from: currentUser,
+          comment: comment || '',
+          createdAt: Date.now(),
+          read: false
+        });
+      }
+      pendingSuggestions.length = 0;
+    }
+    closeModal(detailModal);
+  };
+  document.getElementById('closeDetailModal').onclick = closeDetail;
+  detailModal.onclick = (ev) => { if (ev.target === detailModal) closeDetail(); };
+
   document.getElementById('deleteEventBtn')?.addEventListener('click', async () => {
     if (confirm('Delete this event?')) {
       await remove(ref(db, 'events/' + id));
-      closeModal(document.getElementById('eventDetailModal'));
+      pendingSuggestions.length = 0; // skip comment prompt
+      closeModal(detailModal);
     }
   });
 
@@ -1541,19 +1565,9 @@ function openEventDetail(id) {
     URL.revokeObjectURL(url);
   });
 
-  document.getElementById('markPastBtn')?.addEventListener('click', async () => {
-    await update(ref(db, 'events/' + id), { status: 'Past' });
-    closeModal(document.getElementById('eventDetailModal'));
-  });
 }
 
-document.getElementById('closeDetailModal').addEventListener('click', () => {
-  closeModal(document.getElementById('eventDetailModal'));
-});
-document.getElementById('eventDetailModal').addEventListener('click', e => {
-  if (e.target === document.getElementById('eventDetailModal'))
-    closeModal(document.getElementById('eventDetailModal'));
-});
+// Detail modal close handlers are set per-open in openEventDetail()
 
 // ===== PROFILE MODAL =====
 function openProfile(kind, name) {

@@ -2585,3 +2585,41 @@ openModal = function(modal) {
   _origOpenModal(modal);
   setTimeout(() => modal.querySelectorAll('.form-input, .form-textarea, .search-input, .profile-notes-input').forEach(makeClearable), 0);
 };
+
+// ===== PWA INSTALL BANNER =====
+(function() {
+  const isStandalone = window.navigator.standalone === true
+    || window.matchMedia('(display-mode: standalone)').matches;
+  const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+    || navigator.maxTouchPoints > 1;
+  const dismissed = localStorage.getItem('backstage-install-dismissed');
+
+  if (!isMobile || isStandalone || dismissed) return;
+
+  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Mac/i.test(navigator.userAgent));
+
+  const shareIcon = `<svg width="16" height="16" viewBox="0 0 50 50" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin:0 2px;"><path d="M25 33V3"/><path d="M15 13l10-10 10 10"/><path d="M10 22H6v24h38V22h-4"/></svg>`;
+
+  const instructions = isIOS
+    ? `Tap ${shareIcon} <strong>Share</strong> then <strong>Add to Home Screen</strong>`
+    : `Tap <strong>⋮</strong> menu then <strong>Install app</strong> or <strong>Add to Home Screen</strong>`;
+
+  const banner = document.createElement('div');
+  banner.className = 'install-banner';
+  banner.innerHTML = `
+    <div class="install-banner-content">
+      <div class="install-banner-icon">📲</div>
+      <div class="install-banner-text">
+        <div class="install-banner-title">Add backstage to your home screen</div>
+        <div class="install-banner-instructions">${instructions}</div>
+      </div>
+      <button class="install-banner-close" id="dismissInstall">✕</button>
+    </div>`;
+
+  document.body.prepend(banner);
+
+  document.getElementById('dismissInstall').addEventListener('click', () => {
+    localStorage.setItem('backstage-install-dismissed', '1');
+    banner.remove();
+  });
+})();

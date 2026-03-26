@@ -1614,6 +1614,13 @@ function openProfile(kind, name) {
 
   body.innerHTML = `
     ${profileHeaderHtml}
+    ${kind === 'venue' ? `<div class="profile-notes-section">
+      <div class="profile-notes-label">Venue name</div>
+      <div style="display:flex;gap:0.5rem;align-items:center;">
+        <input type="text" class="form-input" id="venueNameEdit" value="${name}" style="margin-bottom:0;">
+        <button class="save-notes-btn" id="saveVenueName" style="margin-top:0;white-space:nowrap;">Rename</button>
+      </div>
+    </div>` : ''}
     ${kind === 'venue' ? `<div class="profile-notes-section"><div class="profile-notes-label">AI Summary</div><div id="aiSummary" class="ai-summary">${cachedSummary ? cachedSummary.replace(/^#\s*Summary\s*/i, '') : '<span class="ai-summary-placeholder">No summary yet</span>'}</div><div style="display:flex;gap:0.5rem;"><button class="summarize-btn" id="generateSummary">✦ ${cachedSummary ? 'Regenerate' : 'Generate summary'}</button>${cachedSummary ? '<button class="summarize-btn" id="editAiSummary" style="background:var(--surface2);">Edit</button><button class="summarize-btn" id="deleteAiSummary" style="background:var(--surface2);color:var(--red);">Delete</button>' : ''}</div></div>` : ''}
     ${aggregatedNotes ? `<div class="profile-notes-section"><div class="profile-notes-label">${kind === 'artist' ? 'Commentary from events' : 'Venue notes from events'}</div>${aggregatedNotes}</div>` : ''}
     ${othersProfileNotes ? `<div class="profile-notes-section"><div class="profile-notes-label">Others' notes</div>${othersProfileNotes}</div>` : ''}
@@ -1670,13 +1677,52 @@ function openProfile(kind, name) {
   watchChanges('profileNotesInput', 'saveProfileNotes');
   document.getElementById('saveProfileNotes').addEventListener('click', async () => {
     const newText = document.getElementById('profileNotesInput').value;
+    const currentName = document.getElementById('venueNameEdit')?.value.trim() || name;
     const path = (kind === 'artist' ? 'artists/' : 'venues/') + key;
     // Migrate old string notes to per-user format
     const merged = mergeUserNote(existingRecord?.notes, currentUser, newText);
-    await update(ref(db, path), { name, notes: merged });
+    await update(ref(db, path), { name: currentName, notes: merged });
     markSaved('profileNotesInput');
     document.getElementById('saveProfileNotes').classList.remove('has-content');
   });
+
+  // Venue rename
+  if (kind === 'venue') {
+    watchChanges('venueNameEdit', 'saveVenueName');
+    document.getElementById('saveVenueName').addEventListener('click', async () => {
+      const newName = document.getElementById('venueNameEdit').value.trim();
+      if (!newName) { alert('Venue name cannot be empty.'); return; }
+      if (newName === name) return;
+      if (!confirm(`Rename "${name}" to "${newName}"? This will update all events referencing this venue.`)) return;
+
+      const btn = document.getElementById('saveVenueName');
+      btn.disabled = true;
+      btn.textContent = 'Renaming…';
+
+      // Update all events that reference the old venue name
+      const eventUpdates = {};
+      Object.entries(allEvents).forEach(([id, e]) => {
+        if (e.venue === name) eventUpdates['events/' + id + '/venue'] = newName;
+      });
+      if (Object.keys(eventUpdates).length) {
+        await update(ref(db), eventUpdates);
+      }
+
+      // Create new venue record with new key, copy data
+      const newKey = newName.replace(/[.#$/[\]]/g, '_');
+      const venueData = { ...existingRecord, name: newName };
+      await set(ref(db, 'venues/' + newKey), venueData);
+
+      // Remove old venue record if key changed
+      if (newKey !== key) {
+        await remove(ref(db, 'venues/' + key));
+      }
+
+      // Update modal title and re-open profile
+      closeModal(document.getElementById('profileModal'));
+      openProfile('venue', newName);
+    });
+  }
 
   document.getElementById('saveAddress')?.addEventListener('click', async () => {
     const addr = document.getElementById('venueAddress').value.trim();

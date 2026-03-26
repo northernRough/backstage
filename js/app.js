@@ -413,6 +413,18 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
   });
 });
 
+// ===== APP VERSION (force refresh) =====
+let appVersionLoaded = false;
+onValue(ref(db, 'appVersion'), snap => {
+  const v = snap.val();
+  if (!appVersionLoaded) {
+    appVersionLoaded = true; // skip the initial load
+    return;
+  }
+  // Version changed while app is open — reload
+  if (v) window.location.reload();
+});
+
 // ===== FIREBASE LISTENERS =====
 function initListeners() {
   onValue(ref(db, 'events'), snap => {
@@ -471,7 +483,7 @@ function renderNotifications(notifs) {
     return `<div class="notif-item ${n.read ? '' : 'unread'}" data-notif-id="${id}" data-event-id="${n.eventId || ''}" data-venue-key="${n.venueKey || ''}" data-venue="${n.venue || ''}">
       <div class="notif-message">${n.message}</div>
       ${comment}
-      <div class="notif-time">${time}</div>
+      <div class="notif-time">${time ? 'sent ' + time : ''}</div>
     </div>`;
   }).join('');
 
@@ -1963,6 +1975,12 @@ document.querySelectorAll('[data-period]').forEach(btn => {
     adminPeriod = btn.dataset.period;
     renderAdminDashboard(adminPeriod);
   });
+});
+
+// Force refresh all users
+document.getElementById('forceRefreshBtn').addEventListener('click', async () => {
+  if (!confirm('This will reload the app for all users with it open. Continue?')) return;
+  await set(ref(db, 'appVersion'), Date.now());
 });
 
 function renderAdminDashboard(period) {

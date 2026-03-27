@@ -2391,6 +2391,47 @@ document.getElementById('scanEmailsBtn').addEventListener('click', async () => {
   btn.disabled = false;
   btn.textContent = '✦ Scan emails now';
 });
+
+document.getElementById('clearRescanBtn').addEventListener('click', async () => {
+  if (!confirm('This will delete all current suggestions and rescan your emails. Continue?')) return;
+  const btn = document.getElementById('clearRescanBtn');
+  const status = document.getElementById('scanStatus');
+  btn.disabled = true;
+  document.getElementById('scanEmailsBtn').disabled = true;
+  btn.textContent = '✦ Clearing suggestions…';
+  status.textContent = 'Removing existing suggestions…';
+  try {
+    // Delete all Suggested events
+    let cleared = 0;
+    for (const [id, e] of Object.entries(allEvents)) {
+      if (e.status === 'Suggested') {
+        await remove(ref(db, 'events/' + id));
+        cleared++;
+      }
+    }
+    status.textContent = `Cleared ${cleared} suggestions. Rescanning…`;
+    btn.textContent = '✦ Scanning…';
+    // Trigger fresh scan
+    const res = await fetch('/.netlify/functions/scan-emails', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: currentUser, manual: true })
+    });
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); } catch { data = { error: text || 'Unknown error (status ' + res.status + ')' }; }
+    if (data.error) {
+      status.textContent = `Cleared ${cleared}. ` + data.error;
+    } else {
+      status.textContent = `Cleared ${cleared} old suggestions. ${data.message}`;
+    }
+  } catch (err) {
+    status.textContent = 'Error: ' + err.message;
+  }
+  btn.disabled = false;
+  document.getElementById('scanEmailsBtn').disabled = false;
+  btn.textContent = '✦ Clear suggestions & rescan';
+});
 function confirmCloseSettings() {
   if (hasUnsavedChanges('interestsInput', 'imapEmailInput')) {
     if (!confirm('You have unsaved changes. Close without saving?')) return;

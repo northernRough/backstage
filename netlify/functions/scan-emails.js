@@ -204,14 +204,25 @@ ${emailBodies.map((e, i) => `--- Email ${i + 1} ---\nFrom: ${e.from}${e.isTicket
   const existingRes = await fetch(`${firebaseUrl}/events.json`);
   const existing = await existingRes.json() || {};
 
+  // Deduplicate within the batch itself (case-insensitive)
+  const seen = new Set();
+  events = events.filter(e => {
+    if (!e.artist) return false;
+    const key = `${(e.artist || '').toLowerCase()}|${(e.venue || '').toLowerCase()}|${e.date || ''}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
   let added = 0;
   let updated = 0;
   for (const event of events) {
-    if (!event.artist) continue;
 
-    // Find existing match
+    // Find existing match (case-insensitive to avoid duplicates like "JOHN SMITH" vs "John Smith")
     const existingEntry = Object.entries(existing).find(([_, e]) =>
-      e.artist === event.artist && e.venue === event.venue && e.date === event.date
+      (e.artist || '').toLowerCase() === (event.artist || '').toLowerCase() &&
+      (e.venue || '').toLowerCase() === (event.venue || '').toLowerCase() &&
+      e.date === event.date
     );
 
     if (existingEntry) {

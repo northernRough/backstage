@@ -839,7 +839,7 @@ function renderSuggested() {
             : `<a href="https://www.youtube.com/results?search_query=${encodeURIComponent(e.artist)}" target="_blank" class="search-link">Watch</a>`
           }${(() => { const bUrl = e.bookingUrl || (e.venue ? (allVenues[e.venue.replace(/[.#$/[\]]/g, '_')]?.bookingUrl || '') : ''); return bUrl ? ` <a href="${bUrl}" target="_blank" class="booking-link" onclick="event.stopPropagation();">Book</a>` : ''; })()}</span>` : ''}
         </div>
-        ${(() => { const dn = displayNotes(e.artistNotes, currentUser) || (typeof e.notes === 'string' ? e.notes : ''); return dn ? `<div class="event-notes">${dn}</div>` : ''; })()}
+        ${(() => { const dn = displayNotes(e.artistNotes, currentUser) || (typeof e.notes === 'string' ? e.notes : ''); return dn ? `<div class="ai-summary"><span class="ai-summary-label">✦ Why this</span>${dn}</div>` : ''; })()}
       </div>
     </div>`).join('');
 

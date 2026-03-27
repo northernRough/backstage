@@ -275,6 +275,8 @@ body {
 .rating-pill-summary .rp-name { font-style: italic; }
 .rating-pill-summary .rp-stars { color: var(--text-mid); }
 .event-notes { color: var(--text-mid); font-size: 0.82rem; margin-top: 0.5rem; font-style: italic; line-height: 1.4; }
+.ai-summary { color: var(--text-mid); font-size: 0.82rem; margin-top: 0.5rem; font-style: italic; line-height: 1.4; background: rgba(138, 92, 200, 0.08); border-radius: 0.5rem; padding: 0.5rem 0.65rem; }
+.ai-summary-label { font-style: normal; font-weight: 600; color: rgba(138, 92, 200, 0.85); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.03em; display: block; margin-bottom: 0.2rem; }
 
 .status-badge {
   display: inline-block; font-size: 0.7rem; padding: 0.15rem 0.5rem;

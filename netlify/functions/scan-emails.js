@@ -88,9 +88,9 @@ export default async (req) => {
     const lock = await client.getMailboxLock('INBOX');
 
     try {
-      // Manual scans look back 90 days; scheduled scans 3 days (slight overlap)
-      const lookbackDays = manual ? 90 : 3;
-      const maxPerSender = manual ? 15 : 5;
+      // Manual scans look back 90 days; scheduled scans 7 days
+      const lookbackDays = manual ? 90 : 7;
+      const maxPerSender = manual ? 30 : 10;
       const since = new Date();
       since.setDate(since.getDate() - lookbackDays);
 
@@ -154,7 +154,7 @@ For each event return a JSON object with:
 - "date": in YYYY-MM-DD format (if mentioned, otherwise "")
 - "type": one of Music, Theatre, Musical, Dance, Comedy, Film, Exhibition, Festival, Classical, Other
 - "bookingUrl": the URL to book/buy tickets for this specific event (if found in the email, otherwise "")
-- "artistNotes": a brief 1-sentence description of why this might be interesting (based on the email content, user interests, and their taste profile)
+- "artistNotes": a personalized 1-2 sentence AI summary explaining WHY this event is recommended for this specific user. Reference their taste profile, past ratings, or stated interests where relevant. For example: "You loved [similar artist] — this avant-garde jazz trio has a similar improvisational energy." or "Right up your street based on your interest in contemporary dance." If no taste data is available, describe what makes the event notable.
 - "isBookingConfirmation": true if this email is a ticket purchase/booking confirmation, false otherwise
 - "doorsOpen": doors open time if mentioned (e.g. "7:00 PM"), otherwise ""
 - "startTime": event/show start time if mentioned (e.g. "8:00 PM"), otherwise ""
@@ -175,7 +175,7 @@ ${emailBodies.map((e, i) => `--- Email ${i + 1} ---\nFrom: ${e.from}${e.isTicket
     },
     body: JSON.stringify({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 2000,
+      max_tokens: 4096,
       messages: [{ role: 'user', content: prompt }]
     })
   });

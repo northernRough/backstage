@@ -1985,6 +1985,19 @@ document.getElementById('forceRefreshBtn').addEventListener('click', async () =>
   await set(ref(db, 'appVersion'), Date.now());
 });
 
+document.getElementById('clearSuggestionsBtn').addEventListener('click', async () => {
+  const suggested = Object.entries(allEvents).filter(([_, e]) => e.status === 'Suggested');
+  if (!suggested.length) { alert('No suggestions to clear.'); return; }
+  if (!confirm(`Delete all ${suggested.length} suggested events? This can't be undone.`)) return;
+  const btn = document.getElementById('clearSuggestionsBtn');
+  btn.disabled = true;
+  btn.textContent = 'Clearing…';
+  await Promise.all(suggested.map(([id]) => remove(ref(db, 'events/' + id))));
+  btn.disabled = false;
+  btn.textContent = '✕ Clear All Suggestions';
+  alert(`Cleared ${suggested.length} suggestions. Run a new scan to repopulate.`);
+});
+
 function renderAdminDashboard(period) {
   const dash = document.getElementById('adminDashboard');
   const now = Date.now();

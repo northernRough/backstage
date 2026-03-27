@@ -839,6 +839,7 @@ function renderSuggested() {
             : `<a href="https://www.youtube.com/results?search_query=${encodeURIComponent(e.artist)}" target="_blank" class="search-link">Watch</a>`
           }${(() => { const bUrl = e.bookingUrl || (e.venue ? (allVenues[e.venue.replace(/[.#$/[\]]/g, '_')]?.bookingUrl || '') : ''); return bUrl ? ` <a href="${bUrl}" target="_blank" class="booking-link" onclick="event.stopPropagation();">Book</a>` : ''; })()}</span>` : ''}
         </div>
+        ${e.tasteReason ? `<div class="taste-reason">✦ ${e.tasteReason}</div>` : ''}
         ${(() => { const dn = displayNotes(e.artistNotes, currentUser) || (typeof e.notes === 'string' ? e.notes : ''); return dn ? `<div class="event-notes">${dn}</div>` : ''; })()}
       </div>
     </div>`).join('');
@@ -1448,6 +1449,7 @@ function openEventDetail(id) {
     ${e.status === 'Booked' && e.date ? `<div class="detail-calendar-row"><button class="detail-action-btn" id="addToCalendarBtn">📅 Add to Calendar</button></div>` : ''}
     ${e.status === 'Past' && (ratingRows || summaryRow) ? `<div class="detail-ratings">${ratingRows}${summaryRow}</div>` : ''}
     ${e.status === 'Past' ? (() => { const sa = typeof e.seeAgain === 'object' ? !!e.seeAgain?.[currentUser] : !!e.seeAgain; return `<div class="detail-score-row">${avg != null ? `<span class="detail-avg-score">${avg.toFixed(1)}</span>` : ''}<button class="see-again-btn ${sa ? 'see-again-active' : ''}" id="seeAgainBtn"><span class="see-again-icon">↻</span> ${sa ? 'Would see again' : 'See again?'}</button></div>`; })() : ''}
+    ${e.tasteReason ? `<div class="divider"></div><div class="detail-notes-section"><div class="detail-notes-label">Why this suits you</div><div class="taste-reason">✦ ${e.tasteReason}</div></div>` : ''}
     ${(() => { const dn = displayNotes(e.artistNotes, currentUser) || (typeof e.notes === 'string' ? e.notes : ''); return dn ? `<div class="divider"></div><div class="detail-notes-section"><div class="detail-notes-label">About the artist / show</div><div class="detail-notes">${dn}</div></div>` : ''; })()}
     ${(() => {
       // Show personal notes from group members only

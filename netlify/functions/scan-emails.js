@@ -94,7 +94,7 @@ export default async (req) => {
     try {
       // Manual scans look back 90 days; scheduled scans 7 days
       const lookbackDays = manual ? 90 : 7;
-      const maxPerSender = manual ? 30 : 10;
+      const maxPerSender = manual ? 10 : 5;
       const since = new Date();
       since.setDate(since.getDate() - lookbackDays);
 
@@ -130,7 +130,7 @@ export default async (req) => {
           const html = parsed.html || '';
           const links = [...html.matchAll(/href="(https?:\/\/[^"]+)"/gi)].map(m => m[1]);
           const linkBlock = links.length ? '\n\nLinks found: ' + [...new Set(links)].slice(0, 20).join(' ') : '';
-          const body = ((parsed.text || html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ')) + linkBlock).slice(0, 2000);
+          const body = ((parsed.text || html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ')) + linkBlock).slice(0, 4000);
           emailBodies.push({ subject: parsed.subject || '', from: meta.sender, date: parsed.date?.toISOString() || '', body, isTicketSender: meta.isTicketSender });
         }
       }

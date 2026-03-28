@@ -2334,6 +2334,7 @@ function renderSenders(watchSenders, ticketSenders) {
         ${s.name ? `<div class="sender-addr">${s.email}</div>` : ''}
       </div>
       <span class="sender-type ${s.type}">${s.type}</span>
+      <button class="sender-shared ${s.shared === false ? 'private' : ''}" data-sender-key="${s.key}" data-fb-path="${s.fbPath}" title="${s.shared === false ? 'Private — only you see events from this' : 'Shared — contributes to community events'}">${s.shared === false ? '🔒' : '👥'}</button>
       <button class="sender-remove" data-sender-key="${s.key}" data-fb-path="${s.fbPath}">&#x2715;</button>
     </div>
   `).join('') || '<div style="color:var(--text-dim);font-size:0.85rem;">No senders added yet.</div>';
@@ -2341,6 +2342,17 @@ function renderSenders(watchSenders, ticketSenders) {
   list.querySelectorAll('.sender-check').forEach(cb => {
     cb.addEventListener('change', async () => {
       await set(ref(db, `users/${currentUser}/${cb.dataset.fbPath}/${cb.dataset.senderKey}/enabled`), cb.checked);
+    });
+  });
+
+  list.querySelectorAll('.sender-shared').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const isPrivate = btn.classList.contains('private');
+      const newShared = isPrivate; // toggle: was private → now shared, was shared → now private
+      await set(ref(db, `users/${currentUser}/${btn.dataset.fbPath}/${btn.dataset.senderKey}/shared`), newShared);
+      btn.classList.toggle('private', !newShared);
+      btn.textContent = newShared ? '👥' : '🔒';
+      btn.title = newShared ? 'Shared — contributes to community events' : 'Private — only you see events from this';
     });
   });
 

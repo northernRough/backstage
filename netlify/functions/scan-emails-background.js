@@ -11,7 +11,7 @@ async function updateStatus(firebaseUrl, userId, status) {
 }
 
 exports.handler = async (event) => {
-  const { userId, manual } = JSON.parse(event.body || '{}');
+  const { userId, manual, scheduledSubs } = JSON.parse(event.body || '{}');
   if (!userId) return { statusCode: 400 };
 
   const anthropicKey = process.env.ANTHROPIC_API_KEY;
@@ -58,12 +58,20 @@ exports.handler = async (event) => {
       return { statusCode: 200 };
     }
 
-    // Support both old plain-string format and new object format { email, name, enabled }
-    const extractEmails = (obj) => Object.values(obj || {})
-      .map(v => typeof v === 'string' ? v : (v.enabled !== false ? v.email : null))
-      .filter(Boolean);
-    const senderList = extractEmails(senders);
-    const ticketSenderList = extractEmails(ticketSenders);
+    let senderList, ticketSenderList;
+
+    if (scheduledSubs) {
+      // Scheduled scan: only scan the specific subscriptions assigned to this user
+      senderList = scheduledSubs.filter(s => !s.isTicketSender).map(s => s.email);
+      ticketSenderList = scheduledSubs.filter(s => s.isTicketSender).map(s => s.email);
+    } else {
+      // Manual scan: scan all of this user's enabled subscriptions
+      const extractEmails = (obj) => Object.values(obj || {})
+        .map(v => typeof v === 'string' ? v : (v.enabled !== false ? v.email : null))
+        .filter(Boolean);
+      senderList = extractEmails(senders);
+      ticketSenderList = extractEmails(ticketSenders);
+    }
 
     if (!senderList.length && !ticketSenderList.length) {
       await updateStatus(firebaseUrl, userId, { state: 'error', progress: 'No senders to watch. Add venue email addresses in Settings.' });

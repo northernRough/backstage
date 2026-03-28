@@ -111,7 +111,8 @@ export default async (req) => {
           return uids.slice(0, maxPerSender).map(uid => ({ uid, sender, isTicketSender }));
         })
       );
-      const allMessages = searchResults.flat();
+      // Cap total emails to avoid hitting Netlify's function timeout
+      const allMessages = searchResults.flat().slice(0, 60);
 
       // Fetch and parse messages (sequential — IMAP requires it on one connection)
       for (const { uid, sender, isTicketSender } of allMessages) {

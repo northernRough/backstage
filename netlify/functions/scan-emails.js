@@ -175,7 +175,7 @@ Return ONLY a JSON array of events. If no events found, return [].
 Do not include events that have already passed. Today's date is ${new Date().toISOString().split('T')[0]}.`;
 
   // Split emails into chunks and process sequentially to stay within API rate limits
-  const CHUNK_SIZE = 20;
+  const CHUNK_SIZE = 8;
   const chunks = [];
   for (let i = 0; i < emailBodies.length; i += CHUNK_SIZE) {
     chunks.push(emailBodies.slice(i, i + CHUNK_SIZE));
@@ -200,8 +200,9 @@ Do not include events that have already passed. Today's date is ${new Date().toI
     });
 
     if (!claudeRes.ok) {
-      const err = await claudeRes.text();
-      throw new Error(`Claude API error: ${err}`);
+      const errBody = await claudeRes.text();
+      const isRateLimit = errBody.includes('rate_limit');
+      throw new Error(isRateLimit ? 'AI rate limit reached — please wait a minute and try again.' : `AI service error (${claudeRes.status}). Try again shortly.`);
     }
 
     const claudeData = await claudeRes.json();

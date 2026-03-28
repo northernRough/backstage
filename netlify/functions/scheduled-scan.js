@@ -20,7 +20,7 @@ export default async () => {
     if (!userData?.imapEmail || !hasPassword || (!userData?.watchSenders && !userData?.ticketSenders)) continue;
 
     try {
-      const res = await fetch(`${siteUrl}/.netlify/functions/scan-emails`, {
+      const res = await fetch(`${siteUrl}/.netlify/functions/scan-emails-background`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId })

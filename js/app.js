@@ -2379,31 +2379,45 @@ document.getElementById('addTicketSenderBtn').addEventListener('click', async ()
   renderTicketSenders(snap.val() || {});
 });
 
+// Shared scan trigger: fires background function and listens for progress via Firebase
+function triggerScan(statusEl, btnEl, btnLabel, { userId, manual }) {
+  let unsubscribe;
+  return new Promise((resolve) => {
+    // Listen for status updates from the background function
+    unsubscribe = onValue(ref(db, 'scanStatus/' + userId), snap => {
+      const status = snap.val();
+      if (!status) return;
+      statusEl.textContent = status.progress || '';
+      if (status.state === 'complete' || status.state === 'error') {
+        unsubscribe();
+        btnEl.disabled = false;
+        btnEl.textContent = btnLabel;
+        resolve(status);
+      }
+    });
+
+    // Fire the background function (returns 202 immediately)
+    fetch('/.netlify/functions/scan-emails-background', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, manual: !!manual })
+    }).catch(() => {
+      statusEl.textContent = 'Failed to start scan.';
+      btnEl.disabled = false;
+      btnEl.textContent = btnLabel;
+      unsubscribe();
+      resolve(null);
+    });
+  });
+}
+
 document.getElementById('scanEmailsBtn').addEventListener('click', async () => {
   const btn = document.getElementById('scanEmailsBtn');
   const status = document.getElementById('scanStatus');
   btn.disabled = true;
   btn.textContent = '✦ Scanning…';
-  status.textContent = 'Connecting to your email…';
-  try {
-    const res = await fetch('/.netlify/functions/scan-emails', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId: currentUser, manual: true })
-    });
-    const text = await res.text();
-    let data;
-    try { data = JSON.parse(text); } catch { data = { error: text.includes('Timeout') || text.includes('<HTML>') ? 'Scan timed out — try again shortly.' : (text || 'Unknown error (status ' + res.status + ')') }; }
-    if (data.error) {
-      status.textContent = data.error;
-    } else {
-      status.textContent = data.message;
-    }
-  } catch (err) {
-    status.textContent = 'Error: ' + err.message;
-  }
-  btn.disabled = false;
-  btn.textContent = '✦ Scan emails now';
+  status.textContent = 'Starting scan…';
+  await triggerScan(status, btn, '✦ Scan emails now', { userId: currentUser, manual: true });
 });
 
 document.getElementById('clearRescanBtn').addEventListener('click', async () => {
@@ -2413,36 +2427,22 @@ document.getElementById('clearRescanBtn').addEventListener('click', async () => 
   btn.disabled = true;
   btn.textContent = '✦ Clearing suggestions…';
   status.textContent = 'Removing existing suggestions…';
-  try {
-    // Delete all Suggested events
-    let cleared = 0;
-    for (const [id, e] of Object.entries(allEvents)) {
-      if (e.status === 'Suggested') {
-        await remove(ref(db, 'events/' + id));
-        cleared++;
-      }
+  // Delete all Suggested events
+  let cleared = 0;
+  for (const [id, e] of Object.entries(allEvents)) {
+    if (e.status === 'Suggested') {
+      await remove(ref(db, 'events/' + id));
+      cleared++;
     }
-    status.textContent = `Cleared ${cleared} suggestions. Rescanning…`;
-    btn.textContent = '✦ Scanning…';
-    // Trigger fresh scan
-    const res = await fetch('/.netlify/functions/scan-emails', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId: currentUser, manual: true })
-    });
-    const text = await res.text();
-    let data;
-    try { data = JSON.parse(text); } catch { data = { error: text.includes('Timeout') || text.includes('<HTML>') ? 'Scan timed out — try again shortly.' : (text || 'Unknown error (status ' + res.status + ')') }; }
-    if (data.error) {
-      status.textContent = `Cleared ${cleared}. ` + data.error;
-    } else {
-      status.textContent = `Cleared ${cleared} old suggestions. ${data.message}`;
-    }
-  } catch (err) {
-    status.textContent = 'Error: ' + err.message;
   }
-  btn.disabled = false;
-  btn.textContent = '✦ Clear suggestions & rescan';
+  status.textContent = `Cleared ${cleared} suggestions. Starting scan…`;
+  btn.textContent = '✦ Scanning…';
+  const result = await triggerScan(status, btn, '✦ Clear suggestions & rescan', { userId: currentUser, manual: true });
+  if (result?.state === 'complete') {
+    status.textContent = `Cleared ${cleared} old suggestions. ${result.progress}`;
+  } else if (result?.state === 'error') {
+    status.textContent = `Cleared ${cleared}. ${result.progress}`;
+  }
 });
 function confirmCloseSettings() {
   if (hasUnsavedChanges('interestsInput', 'imapEmailInput')) {

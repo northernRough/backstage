@@ -92,8 +92,9 @@ export default async (req) => {
     const lock = await client.getMailboxLock('INBOX');
 
     try {
-      const lookbackDays = manual ? 90 : 3;
-      const maxPerSender = manual ? 15 : 5;
+      // Manual scans look back 90 days; scheduled scans 7 days
+      const lookbackDays = manual ? 90 : 7;
+      const maxPerSender = manual ? 30 : 10;
       const since = new Date();
       since.setDate(since.getDate() - lookbackDays);
 
@@ -154,8 +155,7 @@ For each event return a JSON object with:
 - "date": in YYYY-MM-DD format (if mentioned, otherwise "")
 - "type": one of Music, Theatre, Musical, Dance, Comedy, Film, Exhibition, Festival, Classical, Other
 - "bookingUrl": the URL to book/buy tickets for this specific event (if found in the email, otherwise "")
-- "artistNotes": a brief 1-sentence description of the artist/show based on the email content
-- "tasteReason": a short, personal 1-sentence reason why this event is a good match for this specific user, referencing their taste profile, past ratings, or stated interests (e.g. "You rated Portico Quartet 9/10 and this is a similar jazz-electronica act" or "Right up your street — you love immersive theatre"). If there's no taste profile data to draw on, leave this as ""
+- "artistNotes": a personalized 1-2 sentence AI summary explaining WHY this event is recommended for this specific user. Reference their taste profile, past ratings, or stated interests where relevant. For example: "You loved [similar artist] — this avant-garde jazz trio has a similar improvisational energy." or "Right up your street based on your interest in contemporary dance." If no taste data is available, describe what makes the event notable.
 - "isBookingConfirmation": true if this email is a ticket purchase/booking confirmation, false otherwise
 - "doorsOpen": doors open time if mentioned (e.g. "7:00 PM"), otherwise ""
 - "startTime": event/show start time if mentioned (e.g. "8:00 PM"), otherwise ""
@@ -201,6 +201,16 @@ ${emailBodies.map((e, i) => `--- Email ${i + 1} ---\nFrom: ${e.from}${e.isTicket
     });
   }
 
+  // Deduplicate within the batch itself (case-insensitive)
+  const seen = new Set();
+  events = events.filter(e => {
+    if (!e.artist) return false;
+    const key = `${(e.artist || '').toLowerCase()}|${(e.venue || '').toLowerCase()}|${e.date || ''}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
   // Process events: dedup against existing, write new ones, backfill existing
   let added = 0;
   let updated = 0;
@@ -209,10 +219,12 @@ ${emailBodies.map((e, i) => `--- Email ${i + 1} ---\nFrom: ${e.from}${e.isTicket
   const writePromises = [];
 
   for (const event of events) {
-    if (!event.artist) continue;
 
+    // Find existing match (case-insensitive to avoid duplicates like "JOHN SMITH" vs "John Smith")
     const existingEntry = Object.entries(existing).find(([_, e]) =>
-      e.artist === event.artist && e.venue === event.venue && e.date === event.date
+      (e.artist || '').toLowerCase() === (event.artist || '').toLowerCase() &&
+      (e.venue || '').toLowerCase() === (event.venue || '').toLowerCase() &&
+      e.date === event.date
     );
 
     if (existingEntry) {

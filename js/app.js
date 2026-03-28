@@ -839,8 +839,7 @@ function renderSuggested() {
             : `<a href="https://www.youtube.com/results?search_query=${encodeURIComponent(e.artist)}" target="_blank" class="search-link">Watch</a>`
           }${(() => { const bUrl = e.bookingUrl || (e.venue ? (allVenues[e.venue.replace(/[.#$/[\]]/g, '_')]?.bookingUrl || '') : ''); return bUrl ? ` <a href="${bUrl}" target="_blank" class="booking-link" onclick="event.stopPropagation();">Book</a>` : ''; })()}</span>` : ''}
         </div>
-        ${e.tasteReason ? `<div class="taste-reason">✦ ${e.tasteReason}</div>` : ''}
-        ${(() => { const dn = displayNotes(e.artistNotes, currentUser) || (typeof e.notes === 'string' ? e.notes : ''); return dn ? `<div class="event-notes">${dn}</div>` : ''; })()}
+        ${(() => { const dn = displayNotes(e.artistNotes, currentUser) || (typeof e.notes === 'string' ? e.notes : ''); return dn ? `<div class="ai-summary"><span class="ai-summary-label">✦ Why this</span>${dn}</div>` : ''; })()}
       </div>
     </div>`).join('');
 
@@ -2405,6 +2404,45 @@ document.getElementById('scanEmailsBtn').addEventListener('click', async () => {
   }
   btn.disabled = false;
   btn.textContent = '✦ Scan emails now';
+});
+
+document.getElementById('clearRescanBtn').addEventListener('click', async () => {
+  if (!confirm('This will delete all current suggestions and rescan your emails. Continue?')) return;
+  const btn = document.getElementById('clearRescanBtn');
+  const status = document.getElementById('clearRescanStatus');
+  btn.disabled = true;
+  btn.textContent = '✦ Clearing suggestions…';
+  status.textContent = 'Removing existing suggestions…';
+  try {
+    // Delete all Suggested events
+    let cleared = 0;
+    for (const [id, e] of Object.entries(allEvents)) {
+      if (e.status === 'Suggested') {
+        await remove(ref(db, 'events/' + id));
+        cleared++;
+      }
+    }
+    status.textContent = `Cleared ${cleared} suggestions. Rescanning…`;
+    btn.textContent = '✦ Scanning…';
+    // Trigger fresh scan
+    const res = await fetch('/.netlify/functions/scan-emails', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: currentUser, manual: true })
+    });
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); } catch { data = { error: text || 'Unknown error (status ' + res.status + ')' }; }
+    if (data.error) {
+      status.textContent = `Cleared ${cleared}. ` + data.error;
+    } else {
+      status.textContent = `Cleared ${cleared} old suggestions. ${data.message}`;
+    }
+  } catch (err) {
+    status.textContent = 'Error: ' + err.message;
+  }
+  btn.disabled = false;
+  btn.textContent = '✦ Clear suggestions & rescan';
 });
 function confirmCloseSettings() {
   if (hasUnsavedChanges('interestsInput', 'imapEmailInput')) {

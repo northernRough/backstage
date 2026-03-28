@@ -92,9 +92,9 @@ export default async (req) => {
     const lock = await client.getMailboxLock('INBOX');
 
     try {
-      // Manual scans look back 90 days; scheduled scans 7 days
-      const lookbackDays = manual ? 90 : 7;
-      const maxPerSender = manual ? 10 : 5;
+      // Manual scans look back 90 days; scheduled scans 2 days
+      const lookbackDays = manual ? 90 : 2;
+      const maxPerSender = manual ? 10 : 15;
       const since = new Date();
       since.setDate(since.getDate() - lookbackDays);
 

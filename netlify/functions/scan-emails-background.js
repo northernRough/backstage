@@ -181,7 +181,7 @@ For each event return a JSON object with:
 - "ticketInfo": if a booking confirmation, include any useful details (seat numbers, booking reference) as a short string, otherwise ""
 
 Return ONLY a JSON array of events. If no events found, return [].
-Do not include events that have already passed. Today's date is ${new Date().toISOString().split('T')[0]}.`;
+Today's date is ${new Date().toISOString().split('T')[0]}. Include ALL events mentioned, even if their date has passed — the app handles past/future categorisation separately.`;
 
     // Group emails by sender
     const emailsBySender = new Map();

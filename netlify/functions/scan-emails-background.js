@@ -161,6 +161,10 @@ exports.handler = async (event) => {
       return { statusCode: 200 };
     }
 
+    // Log sample subjects for debugging
+    const sampleSubjects = emailBodies.slice(0, 5).map(e => e.subject).join(' | ');
+    await updateStatus(firebaseUrl, userId, { state: 'analysing', progress: `Processing ${emailBodies.length} emails. Sample: ${sampleSubjects.slice(0, 150)}…` });
+
     // Build prompt preamble
     const promptPreamble = `You are extracting upcoming cultural events from venue newsletter emails for a diary app called Backstage.
 
@@ -236,8 +240,19 @@ Today's date is ${new Date().toISOString().split('T')[0]}. Include ALL events me
       const text = claudeData.content?.[0]?.text || '[]';
       try {
         const match = text.match(/\[[\s\S]*\]/);
-        if (match) events.push(...JSON.parse(match[0]));
+        if (match) {
+          const parsed = JSON.parse(match[0]);
+          if (senderIndex <= 2) {
+            await updateStatus(firebaseUrl, userId, { state: 'analysing', progress: `Sender ${senderIndex} (${sender}): ${parsed.length} events found. Sample: ${text.slice(0, 200)}` });
+          }
+          events.push(...parsed);
+        }
       } catch (e) { /* skip unparseable */ }
+
+      // Brief pause between senders to stay under rate limits
+      if (senderIndex < senderCount) {
+        await new Promise(r => setTimeout(r, 2000));
+      }
     }
 
     await updateStatus(firebaseUrl, userId, { state: 'saving', progress: 'Saving events…' });

@@ -2393,7 +2393,7 @@ document.getElementById('scanEmailsBtn').addEventListener('click', async () => {
     });
     const text = await res.text();
     let data;
-    try { data = JSON.parse(text); } catch { data = { error: text.includes('Timeout') || text.includes('<HTML>') ? 'Scan timed out — try again or reduce watched senders.' : (text || 'Unknown error (status ' + res.status + ')') }; }
+    try { data = JSON.parse(text); } catch { data = { error: text || 'Unknown error (status ' + res.status + ')' }; }
     if (data.error) {
       status.textContent = data.error;
     } else {
@@ -2432,7 +2432,7 @@ document.getElementById('clearRescanBtn').addEventListener('click', async () => 
     });
     const text = await res.text();
     let data;
-    try { data = JSON.parse(text); } catch { data = { error: text.includes('Timeout') || text.includes('<HTML>') ? 'Scan timed out — try again or reduce watched senders.' : (text || 'Unknown error (status ' + res.status + ')') }; }
+    try { data = JSON.parse(text); } catch { data = { error: text || 'Unknown error (status ' + res.status + ')' }; }
     if (data.error) {
       status.textContent = `Cleared ${cleared}. ` + data.error;
     } else {

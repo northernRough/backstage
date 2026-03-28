@@ -1957,8 +1957,7 @@ document.getElementById('settingsBtn').addEventListener('click', async () => {
   const provider = userData.emailProvider || 'icloud';
   document.querySelectorAll('[data-provider]').forEach(b => b.classList.toggle('active', b.dataset.provider === provider));
   document.getElementById('imapEmailInput').placeholder = provider === 'gmail' ? 'you@gmail.com' : 'you@icloud.com';
-  renderSenders(userData.watchSenders || {});
-  renderTicketSenders(userData.ticketSenders || {});
+  renderSenders(userData.watchSenders || {}, userData.ticketSenders || {});
   // Show admin folder for real admin only (not impersonated)
   document.getElementById('adminFolder').style.display = isRealAdmin() ? 'block' : 'none';
   if (isRealAdmin()) renderAdminDashboard('month');
@@ -2314,69 +2313,68 @@ document.getElementById('saveImapCredentials').addEventListener('click', async (
   alert('Email credentials saved.');
 });
 
-function renderSenderList(listId, fbPath, senders) {
-  const list = document.getElementById(listId);
-  const entries = Object.entries(senders);
-  list.innerHTML = entries.map(([key, addr]) => `
+function renderSenders(watchSenders, ticketSenders) {
+  const list = document.getElementById('sendersList');
+  // Merge both lists, normalising old plain-string entries to objects
+  const entries = [];
+  for (const [key, val] of Object.entries(watchSenders || {})) {
+    const entry = typeof val === 'string' ? { email: val, name: '', enabled: true } : val;
+    entries.push({ key, fbPath: 'watchSenders', type: 'newsletter', ...entry });
+  }
+  for (const [key, val] of Object.entries(ticketSenders || {})) {
+    const entry = typeof val === 'string' ? { email: val, name: '', enabled: true } : val;
+    entries.push({ key, fbPath: 'ticketSenders', type: 'tickets', ...entry });
+  }
+
+  list.innerHTML = entries.map(s => `
     <div class="sender-row">
-      <span class="sender-addr">${addr}</span>
-      <button class="sender-remove" data-sender-key="${key}">✕</button>
+      <input type="checkbox" class="sender-check" data-sender-key="${s.key}" data-fb-path="${s.fbPath}" ${s.enabled !== false ? 'checked' : ''}>
+      <div class="sender-info">
+        <div class="sender-name">${s.name || s.email}</div>
+        ${s.name ? `<div class="sender-addr">${s.email}</div>` : ''}
+      </div>
+      <span class="sender-type ${s.type}">${s.type}</span>
+      <button class="sender-remove" data-sender-key="${s.key}" data-fb-path="${s.fbPath}">&#x2715;</button>
     </div>
   `).join('') || '<div style="color:var(--text-dim);font-size:0.85rem;">No senders added yet.</div>';
 
-  list.querySelectorAll('.sender-row').forEach(row => {
-    row.addEventListener('click', (e) => {
-      if (e.target.classList.contains('sender-remove')) return;
-      const wasSelected = row.classList.contains('selected');
-      list.querySelectorAll('.sender-row').forEach(r => r.classList.remove('selected'));
-      if (!wasSelected) row.classList.add('selected');
-    });
-    // Double-tap selects the full email address text
-    const addr = row.querySelector('.sender-addr');
-    addr.addEventListener('dblclick', () => {
-      const range = document.createRange();
-      range.selectNodeContents(addr);
-      const sel = window.getSelection();
-      sel.removeAllRanges();
-      sel.addRange(range);
+  list.querySelectorAll('.sender-check').forEach(cb => {
+    cb.addEventListener('change', async () => {
+      await set(ref(db, `users/${currentUser}/${cb.dataset.fbPath}/${cb.dataset.senderKey}/enabled`), cb.checked);
     });
   });
 
   list.querySelectorAll('.sender-remove').forEach(btn => {
     btn.addEventListener('click', async () => {
-      await remove(ref(db, 'users/' + currentUser + '/' + fbPath + '/' + btn.dataset.senderKey));
-      const snap = await get(ref(db, 'users/' + currentUser + '/' + fbPath));
-      renderSenderList(listId, fbPath, snap.val() || {});
+      await remove(ref(db, `users/${currentUser}/${btn.dataset.fbPath}/${btn.dataset.senderKey}`));
+      const [ws, ts] = await Promise.all([
+        get(ref(db, 'users/' + currentUser + '/watchSenders')),
+        get(ref(db, 'users/' + currentUser + '/ticketSenders'))
+      ]);
+      renderSenders(ws.val() || {}, ts.val() || {});
     });
   });
 }
-function renderSenders(senders) { renderSenderList('sendersList', 'watchSenders', senders); }
-function renderTicketSenders(senders) { renderSenderList('ticketSendersList', 'ticketSenders', senders); }
 
 watchInputs('newSenderInput', 'addSenderBtn');
 
 document.getElementById('addSenderBtn').addEventListener('click', async () => {
-  const input = document.getElementById('newSenderInput');
-  const addr = input.value.trim();
-  if (!addr) return;
-  await push(ref(db, 'users/' + currentUser + '/watchSenders'), addr);
-  input.value = '';
-  input.dispatchEvent(new Event('input', { bubbles: true }));
-  const snap = await get(ref(db, 'users/' + currentUser + '/watchSenders'));
-  renderSenders(snap.val() || {});
-});
-
-watchInputs('newTicketSenderInput', 'addTicketSenderBtn');
-
-document.getElementById('addTicketSenderBtn').addEventListener('click', async () => {
-  const input = document.getElementById('newTicketSenderInput');
-  const addr = input.value.trim();
-  if (!addr) return;
-  await push(ref(db, 'users/' + currentUser + '/ticketSenders'), addr);
-  input.value = '';
-  input.dispatchEvent(new Event('input', { bubbles: true }));
-  const snap = await get(ref(db, 'users/' + currentUser + '/ticketSenders'));
-  renderTicketSenders(snap.val() || {});
+  const nameInput = document.getElementById('newSenderName');
+  const emailInput = document.getElementById('newSenderInput');
+  const typeSelect = document.getElementById('newSenderType');
+  const email = emailInput.value.trim();
+  if (!email) return;
+  const name = nameInput.value.trim();
+  const fbPath = typeSelect.value === 'tickets' ? 'ticketSenders' : 'watchSenders';
+  await push(ref(db, 'users/' + currentUser + '/' + fbPath), { email, name, enabled: true });
+  nameInput.value = '';
+  emailInput.value = '';
+  emailInput.dispatchEvent(new Event('input', { bubbles: true }));
+  const [ws, ts] = await Promise.all([
+    get(ref(db, 'users/' + currentUser + '/watchSenders')),
+    get(ref(db, 'users/' + currentUser + '/ticketSenders'))
+  ]);
+  renderSenders(ws.val() || {}, ts.val() || {});
 });
 
 // Shared scan trigger: fires background function and listens for progress via Firebase

@@ -58,8 +58,12 @@ exports.handler = async (event) => {
       return { statusCode: 200 };
     }
 
-    const senderList = senders ? Object.values(senders) : [];
-    const ticketSenderList = ticketSenders ? Object.values(ticketSenders) : [];
+    // Support both old plain-string format and new object format { email, name, enabled }
+    const extractEmails = (obj) => Object.values(obj || {})
+      .map(v => typeof v === 'string' ? v : (v.enabled !== false ? v.email : null))
+      .filter(Boolean);
+    const senderList = extractEmails(senders);
+    const ticketSenderList = extractEmails(ticketSenders);
 
     if (!senderList.length && !ticketSenderList.length) {
       await updateStatus(firebaseUrl, userId, { state: 'error', progress: 'No senders to watch. Add venue email addresses in Settings.' });

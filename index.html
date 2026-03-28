@@ -413,19 +413,17 @@
             <p class="settings-hint" id="passwordHint" style="margin-top:0.3rem;">iCloud: <a href="https://appleid.apple.com/account/manage" target="_blank" style="color:var(--amber)">generate here</a> · Gmail: <a href="https://myaccount.google.com/apppasswords" target="_blank" style="color:var(--amber)">generate here</a></p>
           </div>
           <button class="save-notes-btn" id="saveImapCredentials">Save email credentials</button>
-          <div class="settings-label" style="margin-top:1rem;">Newsletter senders</div>
-          <p class="settings-hint">Venue newsletters to scan for upcoming events.</p>
+          <div class="settings-label" style="margin-top:1rem;">Email subscriptions</div>
+          <p class="settings-hint">Venue newsletters and ticket senders to scan. Uncheck to exclude from scans.</p>
           <div id="sendersList" class="groups-list"></div>
           <div class="sender-add-row">
-            <input type="email" id="newSenderInput" class="form-input" placeholder="e.g. members@ronniescotts.co.uk">
-            <button class="save-notes-btn" id="addSenderBtn" style="margin-top:0;white-space:nowrap;">+ Add</button>
-          </div>
-          <div class="settings-label" style="margin-top:1rem;">Ticket confirmation senders</div>
-          <p class="settings-hint">Booking/ticket email addresses to detect confirmed bookings.</p>
-          <div id="ticketSendersList" class="groups-list"></div>
-          <div class="sender-add-row">
-            <input type="email" id="newTicketSenderInput" class="form-input" placeholder="e.g. tickets@ronniescotts.co.uk">
-            <button class="save-notes-btn" id="addTicketSenderBtn" style="margin-top:0;white-space:nowrap;">+ Add</button>
+            <input type="text" id="newSenderName" class="form-input" placeholder="Name, e.g. Ronnie Scott's" style="flex:0.8;">
+            <input type="email" id="newSenderInput" class="form-input" placeholder="Email address" style="flex:1;">
+            <select id="newSenderType" class="form-input" style="flex:0.6;padding:0.4rem;">
+              <option value="newsletter">Newsletter</option>
+              <option value="tickets">Tickets</option>
+            </select>
+            <button class="save-notes-btn" id="addSenderBtn" style="margin-top:0;white-space:nowrap;">Add</button>
           </div>
           <button class="summarize-btn" id="scanEmailsBtn" style="margin-top:1rem;width:100%;">✦ Scan emails now</button>
           <div id="scanStatus" class="settings-hint" style="margin-top:0.5rem;"></div>

@@ -2459,6 +2459,15 @@ function renderSenders(watchSenders, ticketSenders) {
     });
   });
 
+  // Highlight save button when any field in the edit panel changes
+  list.querySelectorAll('.sender-edit-panel').forEach(panel => {
+    const saveBtn = panel.querySelector('.sender-edit-save');
+    panel.querySelectorAll('input, select').forEach(input => {
+      input.addEventListener('input', () => saveBtn.classList.add('has-content'));
+      input.addEventListener('change', () => saveBtn.classList.add('has-content'));
+    });
+  });
+
   list.querySelectorAll('.sender-edit-save').forEach(btn => {
     btn.addEventListener('click', async () => {
       const panel = btn.closest('.sender-edit-panel');
@@ -2479,6 +2488,7 @@ function renderSenders(watchSenders, ticketSenders) {
       } else {
         await update(ref(db, `users/${currentUser}/${origPath}/${key}`), { name, email });
       }
+      btn.classList.remove('has-content');
       panel.style.display = 'none';
       const [ws, ts] = await Promise.all([
         get(ref(db, 'users/' + currentUser + '/watchSenders')),

@@ -190,9 +190,10 @@ Do not include events that have already passed. Today's date is ${new Date().toI
       emailsBySender.get(email.from).push(email);
     }
 
-    // Process each sender through Claude sequentially
+    // Process each sender through Claude sequentially with rate limit spacing
     let events = [];
     let senderIndex = 0;
+    let skippedSenders = 0;
     const senderCount = emailsBySender.size;
 
     for (const [sender, senderEmails] of emailsBySender) {
@@ -201,21 +202,35 @@ Do not include events that have already passed. Today's date is ${new Date().toI
 
       const prompt = `${promptPreamble}\n\nEmails from ${sender}:\n${senderEmails.map((e, i) => `--- Email ${i + 1} ---\nFrom: ${e.from}${e.isTicketSender ? ' [TICKET/BOOKING SENDER]' : ''}\nSubject: ${e.subject}\nDate: ${e.date}\n\n${e.body}`).join('\n\n')}`;
 
-      const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': anthropicKey,
-          'anthropic-version': '2023-06-01'
-        },
-        body: JSON.stringify({
-          model: 'claude-haiku-4-5-20251001',
-          max_tokens: 4096,
-          messages: [{ role: 'user', content: prompt }]
-        })
-      });
+      // Retry once on rate limit after waiting
+      let claudeRes;
+      for (let attempt = 0; attempt < 2; attempt++) {
+        claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': anthropicKey,
+            'anthropic-version': '2023-06-01'
+          },
+          body: JSON.stringify({
+            model: 'claude-haiku-4-5-20251001',
+            max_tokens: 4096,
+            messages: [{ role: 'user', content: prompt }]
+          })
+        });
 
-      if (!claudeRes.ok) continue; // skip failed senders, don't abort entire scan
+        if (claudeRes.ok) break;
+        const errText = await claudeRes.text();
+        if (errText.includes('rate_limit') && attempt === 0) {
+          await updateStatus(firebaseUrl, userId, { state: 'analysing', progress: `Rate limit — waiting 60s before sender ${senderIndex}…` });
+          await new Promise(r => setTimeout(r, 60000));
+        } else {
+          claudeRes = null;
+          break;
+        }
+      }
+
+      if (!claudeRes || !claudeRes.ok) { skippedSenders++; continue; }
 
       const claudeData = await claudeRes.json();
       const text = claudeData.content?.[0]?.text || '[]';
@@ -340,7 +355,7 @@ Do not include events that have already passed. Today's date is ${new Date().toI
 
     await Promise.all([...writePromises, ...venueChecks, ...expiredDeletes]);
 
-    const message = `Scanned ${emailBodies.length} emails, found ${events.length} events, added ${added} new suggestions${updated ? `, updated ${updated} existing` : ''}${expired ? `, removed ${expired} expired` : ''}.`;
+    const message = `Scanned ${emailBodies.length} emails, found ${events.length} events, added ${added} new suggestions${updated ? `, updated ${updated} existing` : ''}${expired ? `, removed ${expired} expired` : ''}${skippedSenders ? ` (${skippedSenders} senders skipped due to errors)` : ''}.`;
     await updateStatus(firebaseUrl, userId, { state: 'complete', progress: message, added, updated, expired, events: events.length, scanned: emailBodies.length });
 
   } catch (err) {

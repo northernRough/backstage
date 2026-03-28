@@ -156,19 +156,36 @@ exports.handler = async (event) => {
           let fetchCount = 0;
           let noSourceCount = 0;
           let noMetaCount = 0;
+          let fromMismatch = 0;
+          let dateMismatch = 0;
           for await (const msg of client.fetch(uids, { source: true }, { uid: true })) {
             fetchCount++;
             if (!msg?.source) { noSourceCount++; continue; }
             const meta = uidMeta.get(msg.uid);
             if (!meta) { noMetaCount++; continue; }
             const parsed = await simpleParser(msg.source);
+
+            // Verify the actual From header matches the expected sender
+            const actualFrom = (parsed.from?.value?.[0]?.address || '').toLowerCase();
+            const expectedSender = meta.sender.toLowerCase();
+            if (!actualFrom.includes(expectedSender) && !expectedSender.includes(actualFrom)) {
+              fromMismatch++;
+              continue;
+            }
+
+            // Verify the email date is within the lookback period
+            if (parsed.date && parsed.date < since) {
+              dateMismatch++;
+              continue;
+            }
+
             const html = parsed.html || '';
             const links = [...html.matchAll(/href="(https?:\/\/[^"]+)"/gi)].map(m => m[1]);
             const linkBlock = links.length ? '\n\nLinks found: ' + [...new Set(links)].slice(0, 20).join(' ') : '';
             const body = ((parsed.text || html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ')) + linkBlock).slice(0, 4000);
-            emailBodies.push({ subject: parsed.subject || '', from: meta.sender, date: parsed.date?.toISOString() || '', body, isTicketSender: meta.isTicketSender });
+            emailBodies.push({ subject: parsed.subject || '', from: actualFrom, date: parsed.date?.toISOString() || '', body, isTicketSender: meta.isTicketSender });
           }
-          await appendLog(firebaseUrl, userId, scanLog, `Fetch results: ${fetchCount} returned by IMAP, ${noSourceCount} had no source, ${noMetaCount} had no meta match, ${emailBodies.length} parsed successfully`);
+          await appendLog(firebaseUrl, userId, scanLog, `Fetch results: ${fetchCount} returned by IMAP, ${noSourceCount} no source, ${noMetaCount} no meta, ${fromMismatch} from-mismatch, ${dateMismatch} date-mismatch, ${emailBodies.length} valid`);
         }
 
       } finally {

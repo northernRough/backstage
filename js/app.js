@@ -2629,6 +2629,13 @@ document.getElementById('scanEmailsBtn').addEventListener('click', async () => {
   btn.textContent = '✦ Scanning…';
   status.textContent = 'Starting scan…';
   await triggerScan(status, btn, '✦ Scan emails now', { userId: currentUser, manual: true });
+  // Load scan log after completion
+  try {
+    const logSnap = await get(ref(db, 'scanLogs/' + currentUser));
+    const logData = logSnap.val();
+    const logEl = document.getElementById('scanLogOutput');
+    if (logData?.log && logEl) logEl.textContent = logData.log.join('\n');
+  } catch (e) { /* ignore */ }
 });
 
 document.getElementById('clearRescanBtn').addEventListener('click', async () => {

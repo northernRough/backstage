@@ -10,6 +10,16 @@ async function updateStatus(firebaseUrl, userId, status) {
   });
 }
 
+// Append a line to the persistent scan log
+async function appendLog(firebaseUrl, userId, scanLog, message) {
+  scanLog.push(`[${new Date().toISOString().slice(11, 19)}] ${message}`);
+  await fetch(`${firebaseUrl}/scanLogs/${userId}.json`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ log: scanLog, updatedAt: Date.now() })
+  });
+}
+
 exports.handler = async (event) => {
   const { userId, manual, scheduledSubs } = JSON.parse(event.body || '{}');
   if (!userId) return { statusCode: 400 };
@@ -17,8 +27,11 @@ exports.handler = async (event) => {
   const anthropicKey = process.env.ANTHROPIC_API_KEY;
   const firebaseUrl = process.env.FIREBASE_DB_URL;
 
+  const scanLog = [];
+
   try {
     await updateStatus(firebaseUrl, userId, { state: 'starting', progress: 'Loading data…' });
+    await appendLog(firebaseUrl, userId, scanLog, `Scan started. manual=${manual}`);
 
     // Fetch user data and all events in parallel
     const [userRes, credRes, allEventsRes] = await Promise.all([
@@ -58,20 +71,23 @@ exports.handler = async (event) => {
       return { statusCode: 200 };
     }
 
+    await appendLog(firebaseUrl, userId, scanLog, `Provider: ${provider}, email: ${imapEmail}`);
+    await appendLog(firebaseUrl, userId, scanLog, `watchSenders keys: ${Object.keys(senders || {}).length}, ticketSenders keys: ${Object.keys(ticketSenders || {}).length}`);
+
     let senderList, ticketSenderList;
 
     if (scheduledSubs) {
-      // Scheduled scan: only scan the specific subscriptions assigned to this user
       senderList = scheduledSubs.filter(s => !s.isTicketSender).map(s => s.email);
       ticketSenderList = scheduledSubs.filter(s => s.isTicketSender).map(s => s.email);
     } else {
-      // Manual scan: scan all of this user's enabled subscriptions
       const extractEmails = (obj) => Object.values(obj || {})
         .map(v => typeof v === 'string' ? v : (v.enabled !== false ? v.email : null))
         .filter(Boolean);
       senderList = extractEmails(senders);
       ticketSenderList = extractEmails(ticketSenders);
     }
+
+    await appendLog(firebaseUrl, userId, scanLog, `Senders: newsletters=${JSON.stringify(senderList)}, tickets=${JSON.stringify(ticketSenderList)}`);
 
     if (!senderList.length && !ticketSenderList.length) {
       await updateStatus(firebaseUrl, userId, { state: 'error', progress: 'No senders to watch. Add venue email addresses in Settings.' });
@@ -118,11 +134,13 @@ exports.handler = async (event) => {
         const allMessages = [];
         for (const { sender, isTicketSender } of allSenders) {
           const uids = await client.search({ from: sender, since });
+          await appendLog(firebaseUrl, userId, scanLog, `IMAP search "${sender}": ${uids.length} messages (using ${Math.min(uids.length, maxPerSender)})`);
           for (const uid of uids.slice(0, maxPerSender)) {
             allMessages.push({ uid, sender, isTicketSender });
           }
         }
 
+        await appendLog(firebaseUrl, userId, scanLog, `Total messages to fetch: ${allMessages.length}`);
         await updateStatus(firebaseUrl, userId, { state: 'fetching', progress: `Downloading ${allMessages.length} emails…` });
 
         // Build UID→metadata map for batch fetch
@@ -156,14 +174,15 @@ exports.handler = async (event) => {
       return { statusCode: 200 };
     }
 
+    await appendLog(firebaseUrl, userId, scanLog, `Fetched ${emailBodies.length} emails total`);
+    for (const e of emailBodies.slice(0, 5)) {
+      await appendLog(firebaseUrl, userId, scanLog, `  Subject: "${e.subject}" | From: ${e.from} | Body: ${e.body.length} chars`);
+    }
+
     if (!emailBodies.length) {
       await updateStatus(firebaseUrl, userId, { state: 'complete', progress: 'No recent emails found from watched senders.', added: 0, events: 0 });
       return { statusCode: 200 };
     }
-
-    // Log sample subjects for debugging
-    const sampleSubjects = emailBodies.slice(0, 5).map(e => e.subject).join(' | ');
-    await updateStatus(firebaseUrl, userId, { state: 'analysing', progress: `Processing ${emailBodies.length} emails. Sample: ${sampleSubjects.slice(0, 150)}…` });
 
     // Build prompt preamble
     const promptPreamble = `You are extracting upcoming cultural events from venue newsletter emails for a diary app called Backstage.
@@ -234,20 +253,31 @@ Today's date is ${new Date().toISOString().split('T')[0]}. Include ALL events me
         }
       }
 
-      if (!claudeRes || !claudeRes.ok) { skippedSenders++; continue; }
+      if (!claudeRes || !claudeRes.ok) {
+        const errBody = claudeRes ? await claudeRes.text().catch(() => '(no body)') : '(null response)';
+        await appendLog(firebaseUrl, userId, scanLog, `Sender ${senderIndex} "${sender}": SKIPPED — HTTP ${claudeRes?.status || 'null'}. ${errBody.slice(0, 200)}`);
+        skippedSenders++;
+        continue;
+      }
 
       const claudeData = await claudeRes.json();
       const text = claudeData.content?.[0]?.text || '[]';
+      const stopReason = claudeData.stop_reason || 'unknown';
+      const inputTokens = claudeData.usage?.input_tokens || 0;
+      const outputTokens = claudeData.usage?.output_tokens || 0;
+
       try {
         const match = text.match(/\[[\s\S]*\]/);
         if (match) {
           const parsed = JSON.parse(match[0]);
-          if (senderIndex <= 2) {
-            await updateStatus(firebaseUrl, userId, { state: 'analysing', progress: `Sender ${senderIndex} (${sender}): ${parsed.length} events found. Sample: ${text.slice(0, 200)}` });
-          }
+          await appendLog(firebaseUrl, userId, scanLog, `Sender ${senderIndex} "${sender}": ${senderEmails.length} emails → ${parsed.length} events (${inputTokens}in/${outputTokens}out, stop=${stopReason})`);
           events.push(...parsed);
+        } else {
+          await appendLog(firebaseUrl, userId, scanLog, `Sender ${senderIndex} "${sender}": No JSON array found in response. Text: ${text.slice(0, 300)}`);
         }
-      } catch (e) { /* skip unparseable */ }
+      } catch (e) {
+        await appendLog(firebaseUrl, userId, scanLog, `Sender ${senderIndex} "${sender}": JSON parse error: ${e.message}. Text: ${text.slice(0, 300)}`);
+      }
 
       // Brief pause between senders to stay under rate limits
       if (senderIndex < senderCount) {
@@ -370,10 +400,13 @@ Today's date is ${new Date().toISOString().split('T')[0]}. Include ALL events me
 
     await Promise.all([...writePromises, ...venueChecks, ...expiredDeletes]);
 
+    await appendLog(firebaseUrl, userId, scanLog, `Done. ${events.length} events after dedup, ${added} added, ${updated} updated, ${expired} expired removed, ${skippedSenders}/${senderCount} senders skipped`);
+
     const message = `Scanned ${emailBodies.length} emails from ${senderCount} senders, found ${events.length} events, added ${added} new suggestions${updated ? `, updated ${updated} existing` : ''}${expired ? `, removed ${expired} expired` : ''}${skippedSenders ? ` (${skippedSenders}/${senderCount} senders skipped)` : ''}.`;
     await updateStatus(firebaseUrl, userId, { state: 'complete', progress: message, added, updated, expired, events: events.length, scanned: emailBodies.length, senders: senderCount, skipped: skippedSenders });
 
   } catch (err) {
+    await appendLog(firebaseUrl, userId, scanLog, `FATAL ERROR: ${err.message}\n${err.stack}`);
     await updateStatus(firebaseUrl, userId, { state: 'error', progress: `Scan failed: ${err.message}` });
   }
 

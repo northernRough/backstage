@@ -355,8 +355,8 @@ Today's date is ${new Date().toISOString().split('T')[0]}. Include ALL events me
 
     await Promise.all([...writePromises, ...venueChecks, ...expiredDeletes]);
 
-    const message = `Scanned ${emailBodies.length} emails, found ${events.length} events, added ${added} new suggestions${updated ? `, updated ${updated} existing` : ''}${expired ? `, removed ${expired} expired` : ''}${skippedSenders ? ` (${skippedSenders} senders skipped due to errors)` : ''}.`;
-    await updateStatus(firebaseUrl, userId, { state: 'complete', progress: message, added, updated, expired, events: events.length, scanned: emailBodies.length });
+    const message = `Scanned ${emailBodies.length} emails from ${senderCount} senders, found ${events.length} events, added ${added} new suggestions${updated ? `, updated ${updated} existing` : ''}${expired ? `, removed ${expired} expired` : ''}${skippedSenders ? ` (${skippedSenders}/${senderCount} senders skipped)` : ''}.`;
+    await updateStatus(firebaseUrl, userId, { state: 'complete', progress: message, added, updated, expired, events: events.length, scanned: emailBodies.length, senders: senderCount, skipped: skippedSenders });
 
   } catch (err) {
     await updateStatus(firebaseUrl, userId, { state: 'error', progress: `Scan failed: ${err.message}` });

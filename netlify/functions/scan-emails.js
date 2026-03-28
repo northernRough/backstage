@@ -142,8 +142,8 @@ export default async (req) => {
     });
   }
 
-  // Send to Claude to extract events
-  const prompt = `You are extracting upcoming cultural events from venue newsletter emails for a diary app called Backstage.
+  // Build the shared prompt preamble (taste profile, instructions)
+  const promptPreamble = `You are extracting upcoming cultural events from venue newsletter emails for a diary app called Backstage.
 
 ${interests ? `The user's interests: ${interests}\n` : ''}${tasteProfile}
 From the following emails, extract any upcoming events (concerts, shows, exhibitions, etc). Also detect booking confirmation emails — if an email is a ticket purchase confirmation or e-ticket, mark it as a confirmed booking.
@@ -162,44 +162,44 @@ For each event return a JSON object with:
 - "ticketInfo": if a booking confirmation, include any useful details (seat numbers, booking reference) as a short string, otherwise ""
 
 Return ONLY a JSON array of events. If no events found, return [].
-Do not include events that have already passed. Today's date is ${new Date().toISOString().split('T')[0]}.
+Do not include events that have already passed. Today's date is ${new Date().toISOString().split('T')[0]}.`;
 
-Emails:
-${emailBodies.map((e, i) => `--- Email ${i + 1} ---\nFrom: ${e.from}${e.isTicketSender ? ' [TICKET/BOOKING SENDER]' : ''}\nSubject: ${e.subject}\nDate: ${e.date}\n\n${e.body}`).join('\n\n')}`;
-
-  const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': anthropicKey,
-      'anthropic-version': '2023-06-01'
-    },
-    body: JSON.stringify({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 4096,
-      messages: [{ role: 'user', content: prompt }]
-    })
-  });
-
-  if (!claudeRes.ok) {
-    const err = await claudeRes.text();
-    return new Response(JSON.stringify({ error: `Claude API error: ${err}` }), {
-      status: 500, headers: { 'Content-Type': 'application/json' }
-    });
+  // Split emails into chunks and call Claude in parallel to avoid timeout
+  const CHUNK_SIZE = 20;
+  const chunks = [];
+  for (let i = 0; i < emailBodies.length; i += CHUNK_SIZE) {
+    chunks.push(emailBodies.slice(i, i + CHUNK_SIZE));
   }
 
-  const claudeData = await claudeRes.json();
-  const text = claudeData.content?.[0]?.text || '[]';
+  const chunkResults = await Promise.all(chunks.map(async (chunk) => {
+    const prompt = `${promptPreamble}\n\nEmails:\n${chunk.map((e, i) => `--- Email ${i + 1} ---\nFrom: ${e.from}${e.isTicketSender ? ' [TICKET/BOOKING SENDER]' : ''}\nSubject: ${e.subject}\nDate: ${e.date}\n\n${e.body}`).join('\n\n')}`;
 
-  let events = [];
-  try {
+    const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': anthropicKey,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 4096,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    if (!claudeRes.ok) {
+      const err = await claudeRes.text();
+      throw new Error(`Claude API error: ${err}`);
+    }
+
+    const claudeData = await claudeRes.json();
+    const text = claudeData.content?.[0]?.text || '[]';
     const match = text.match(/\[[\s\S]*\]/);
-    if (match) events = JSON.parse(match[0]);
-  } catch (e) {
-    return new Response(JSON.stringify({ error: 'Failed to parse events from AI response', raw: text }), {
-      status: 500, headers: { 'Content-Type': 'application/json' }
-    });
-  }
+    return match ? JSON.parse(match[0]) : [];
+  }));
+
+  let events = chunkResults.flat();
 
   // Deduplicate within the batch itself (case-insensitive)
   const seen = new Set();

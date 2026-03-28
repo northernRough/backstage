@@ -174,14 +174,15 @@ For each event return a JSON object with:
 Return ONLY a JSON array of events. If no events found, return [].
 Do not include events that have already passed. Today's date is ${new Date().toISOString().split('T')[0]}.`;
 
-  // Split emails into chunks and call Claude in parallel to avoid timeout
+  // Split emails into chunks and process sequentially to stay within API rate limits
   const CHUNK_SIZE = 20;
   const chunks = [];
   for (let i = 0; i < emailBodies.length; i += CHUNK_SIZE) {
     chunks.push(emailBodies.slice(i, i + CHUNK_SIZE));
   }
 
-  const chunkResults = await Promise.all(chunks.map(async (chunk) => {
+  let events = [];
+  for (const chunk of chunks) {
     const prompt = `${promptPreamble}\n\nEmails:\n${chunk.map((e, i) => `--- Email ${i + 1} ---\nFrom: ${e.from}${e.isTicketSender ? ' [TICKET/BOOKING SENDER]' : ''}\nSubject: ${e.subject}\nDate: ${e.date}\n\n${e.body}`).join('\n\n')}`;
 
     const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
@@ -206,10 +207,8 @@ Do not include events that have already passed. Today's date is ${new Date().toI
     const claudeData = await claudeRes.json();
     const text = claudeData.content?.[0]?.text || '[]';
     const match = text.match(/\[[\s\S]*\]/);
-    return match ? JSON.parse(match[0]) : [];
-  }));
-
-  let events = chunkResults.flat();
+    if (match) events.push(...JSON.parse(match[0]));
+  }
 
   // Deduplicate within the batch itself (case-insensitive)
   const seen = new Set();

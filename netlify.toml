@@ -1,2 +1,9 @@
 [functions]
   directory = "netlify/functions"
+  external_node_modules = ["imapflow", "mailparser"]
+
+[functions."scan-emails"]
+  timeout = 26
+
+[functions."scheduled-scan"]
+  timeout = 26

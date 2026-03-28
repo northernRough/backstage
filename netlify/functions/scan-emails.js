@@ -17,16 +17,22 @@ export default async (req) => {
   const anthropicKey = Netlify.env.get('ANTHROPIC_API_KEY');
   const firebaseUrl = Netlify.env.get('FIREBASE_DB_URL');
 
-  // Get user's IMAP credentials and sender list from Firebase
-  const userRes = await fetch(`${firebaseUrl}/users/${userId}.json`);
-  const userData = await userRes.json();
+  // Fetch user data and all events in parallel (single fetch for events)
+  const [userRes, credRes, allEventsRes] = await Promise.all([
+    fetch(`${firebaseUrl}/users/${userId}.json`),
+    fetch(`${firebaseUrl}/credentials/${userId}.json`),
+    fetch(`${firebaseUrl}/events.json`)
+  ]);
+  const [userData, credData, allEventsData] = await Promise.all([
+    userRes.json(),
+    credRes.json(),
+    allEventsRes.json()
+  ]);
+  const existing = allEventsData || {};
 
   const imapEmail = userData?.imapEmail;
-  // Read IMAP password: env var > /credentials path > legacy /users path
   let imapPassword = Netlify.env.get('IMAP_PASS_' + userId.toUpperCase());
   if (!imapPassword) {
-    const credRes = await fetch(`${firebaseUrl}/credentials/${userId}.json`);
-    const credData = await credRes.json();
     imapPassword = credData?.imapPassword || userData?.imapPassword;
   }
   const provider = userData?.emailProvider || 'icloud';
@@ -34,10 +40,8 @@ export default async (req) => {
   const ticketSenders = userData?.ticketSenders;
   const interests = userData?.interests || '';
 
-  // Build taste profile from user's past ratings and comments
-  const allEventsRes = await fetch(`${firebaseUrl}/events.json`);
-  const allEventsData = await allEventsRes.json() || {};
-  const tasteEntries = Object.values(allEventsData)
+  // Build taste profile from the already-fetched events
+  const tasteEntries = Object.values(existing)
     .filter(e => e.status === 'Past' && e.ratings?.[userId])
     .map(e => ({
       artist: e.artist,
@@ -72,7 +76,7 @@ export default async (req) => {
     });
   }
 
-  // Connect to iCloud IMAP
+  // Connect to IMAP
   const client = new ImapFlow({
     host: imapConfig.host,
     port: imapConfig.port,
@@ -88,40 +92,36 @@ export default async (req) => {
     const lock = await client.getMailboxLock('INBOX');
 
     try {
-      // Manual scans look back 90 days; scheduled scans 3 days (slight overlap)
       const lookbackDays = manual ? 90 : 3;
       const maxPerSender = manual ? 15 : 5;
       const since = new Date();
       since.setDate(since.getDate() - lookbackDays);
 
-      // Search newsletter senders for event listings
-      for (const sender of senderList) {
-        const messages = await client.search({ from: sender, since });
-        for (const uid of messages.slice(0, maxPerSender)) {
-          const msg = await client.fetchOne(uid, { source: true });
-          if (!msg?.source) continue;
-          const parsed = await simpleParser(msg.source);
-          const html = parsed.html || '';
-          const links = [...html.matchAll(/href="(https?:\/\/[^"]+)"/gi)].map(m => m[1]);
-          const linkBlock = links.length ? '\n\nLinks found: ' + [...new Set(links)].slice(0, 20).join(' ') : '';
-          const body = ((parsed.text || html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ')) + linkBlock).slice(0, 4000);
-          emailBodies.push({ subject: parsed.subject || '', from: sender, date: parsed.date?.toISOString() || '', body, isTicketSender: false });
-        }
-      }
+      // Collect all sender searches into a flat list with isTicketSender flag
+      const allSenders = [
+        ...senderList.map(s => ({ sender: s, isTicketSender: false })),
+        ...ticketSenderList.map(s => ({ sender: s, isTicketSender: true }))
+      ];
 
-      // Search ticket confirmation senders
-      for (const sender of ticketSenderList) {
-        const messages = await client.search({ from: sender, since });
-        for (const uid of messages.slice(0, maxPerSender)) {
-          const msg = await client.fetchOne(uid, { source: true });
-          if (!msg?.source) continue;
-          const parsed = await simpleParser(msg.source);
-          const html = parsed.html || '';
-          const links = [...html.matchAll(/href="(https?:\/\/[^"]+)"/gi)].map(m => m[1]);
-          const linkBlock = links.length ? '\n\nLinks found: ' + [...new Set(links)].slice(0, 20).join(' ') : '';
-          const body = ((parsed.text || html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ')) + linkBlock).slice(0, 4000);
-          emailBodies.push({ subject: parsed.subject || '', from: sender, date: parsed.date?.toISOString() || '', body, isTicketSender: true });
-        }
+      // Search all senders in parallel, then fetch messages
+      const searchResults = await Promise.all(
+        allSenders.map(async ({ sender, isTicketSender }) => {
+          const uids = await client.search({ from: sender, since });
+          return uids.slice(0, maxPerSender).map(uid => ({ uid, sender, isTicketSender }));
+        })
+      );
+      const allMessages = searchResults.flat();
+
+      // Fetch and parse messages (sequential — IMAP requires it on one connection)
+      for (const { uid, sender, isTicketSender } of allMessages) {
+        const msg = await client.fetchOne(uid, { source: true });
+        if (!msg?.source) continue;
+        const parsed = await simpleParser(msg.source);
+        const html = parsed.html || '';
+        const links = [...html.matchAll(/href="(https?:\/\/[^"]+)"/gi)].map(m => m[1]);
+        const linkBlock = links.length ? '\n\nLinks found: ' + [...new Set(links)].slice(0, 20).join(' ') : '';
+        const body = ((parsed.text || html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ')) + linkBlock).slice(0, 4000);
+        emailBodies.push({ subject: parsed.subject || '', from: sender, date: parsed.date?.toISOString() || '', body, isTicketSender });
       }
 
     } finally {
@@ -154,7 +154,8 @@ For each event return a JSON object with:
 - "date": in YYYY-MM-DD format (if mentioned, otherwise "")
 - "type": one of Music, Theatre, Musical, Dance, Comedy, Film, Exhibition, Festival, Classical, Other
 - "bookingUrl": the URL to book/buy tickets for this specific event (if found in the email, otherwise "")
-- "artistNotes": a brief 1-sentence description of why this might be interesting (based on the email content, user interests, and their taste profile)
+- "artistNotes": a brief 1-sentence description of the artist/show based on the email content
+- "tasteReason": a short, personal 1-sentence reason why this event is a good match for this specific user, referencing their taste profile, past ratings, or stated interests (e.g. "You rated Portico Quartet 9/10 and this is a similar jazz-electronica act" or "Right up your street — you love immersive theatre"). If there's no taste profile data to draw on, leave this as ""
 - "isBookingConfirmation": true if this email is a ticket purchase/booking confirmation, false otherwise
 - "doorsOpen": doors open time if mentioned (e.g. "7:00 PM"), otherwise ""
 - "startTime": event/show start time if mentioned (e.g. "8:00 PM"), otherwise ""
@@ -175,7 +176,7 @@ ${emailBodies.map((e, i) => `--- Email ${i + 1} ---\nFrom: ${e.from}${e.isTicket
     },
     body: JSON.stringify({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 2000,
+      max_tokens: 4096,
       messages: [{ role: 'user', content: prompt }]
     })
   });
@@ -200,44 +201,44 @@ ${emailBodies.map((e, i) => `--- Email ${i + 1} ---\nFrom: ${e.from}${e.isTicket
     });
   }
 
-  // Check existing events for deduplication
-  const existingRes = await fetch(`${firebaseUrl}/events.json`);
-  const existing = await existingRes.json() || {};
-
+  // Process events: dedup against existing, write new ones, backfill existing
   let added = 0;
   let updated = 0;
+
+  // Batch all Firebase writes into parallel groups
+  const writePromises = [];
+
   for (const event of events) {
     if (!event.artist) continue;
 
-    // Find existing match
     const existingEntry = Object.entries(existing).find(([_, e]) =>
       e.artist === event.artist && e.venue === event.venue && e.date === event.date
     );
 
     if (existingEntry) {
-      // Backfill missing fields only — never overwrite existing values
       const [existingId, existingData] = existingEntry;
       const backfill = {};
       if (!existingData.mainArtist && event.mainArtist) backfill.mainArtist = event.mainArtist;
       if (!existingData.bookingUrl && event.bookingUrl) backfill.bookingUrl = event.bookingUrl;
       if (!existingData.artistNotes && event.artistNotes) backfill.artistNotes = event.artistNotes;
+      if (!existingData.tasteReason && event.tasteReason) backfill.tasteReason = event.tasteReason;
       if (!existingData.date && event.date) backfill.date = event.date;
       if (!existingData.ticketInfo && event.ticketInfo) backfill.ticketInfo = event.ticketInfo;
       if (!existingData.doorsOpen && event.doorsOpen) backfill.doorsOpen = event.doorsOpen;
       if (!existingData.startTime && event.startTime) backfill.startTime = event.startTime;
-      // Upgrade to Booked if we found a booking confirmation
       if (event.isBookingConfirmation && existingData.status === 'Suggested') {
         backfill.status = 'Booked';
         backfill.attendees = { [userId]: true };
       }
 
       if (Object.keys(backfill).length > 0) {
-        await fetch(`${firebaseUrl}/events/${existingId}.json`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(backfill)
-        });
-        updated++;
+        writePromises.push(
+          fetch(`${firebaseUrl}/events/${existingId}.json`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(backfill)
+          }).then(() => { updated++; })
+        );
       }
       continue;
     }
@@ -251,6 +252,7 @@ ${emailBodies.map((e, i) => `--- Email ${i + 1} ---\nFrom: ${e.from}${e.isTicket
       type: event.type || 'Other',
       status: isBooked ? 'Booked' : 'Suggested',
       artistNotes: event.artistNotes || '',
+      tasteReason: event.tasteReason || '',
       bookingUrl: event.bookingUrl || '',
       ticketInfo: event.ticketInfo || '',
       doorsOpen: event.doorsOpen || '',
@@ -261,38 +263,49 @@ ${emailBodies.map((e, i) => `--- Email ${i + 1} ---\nFrom: ${e.from}${e.isTicket
       ...(isBooked ? { attendees: { [userId]: true } } : {})
     };
 
-    await fetch(`${firebaseUrl}/events.json`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(eventData)
-    });
-    added++;
-  }
-
-  // Also backfill venue booking URLs if not already set
-  for (const event of events) {
-    if (!event.venue || !event.bookingUrl) continue;
-    const venueKey = event.venue.replace(/[.#$/[\]]/g, '_');
-    const venueRes = await fetch(`${firebaseUrl}/venues/${venueKey}.json`);
-    const venueData = await venueRes.json();
-    if (!venueData?.bookingUrl) {
-      await fetch(`${firebaseUrl}/venues/${venueKey}.json`, {
-        method: 'PATCH',
+    writePromises.push(
+      fetch(`${firebaseUrl}/events.json`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: event.venue, bookingUrl: event.bookingUrl })
-      });
-    }
+        body: JSON.stringify(eventData)
+      }).then(() => { added++; })
+    );
   }
 
-  // Clean up expired suggestions (past date, still Suggested)
+  // Backfill venue booking URLs in parallel
+  const venueChecks = [];
+  const seenVenues = new Set();
+  for (const event of events) {
+    if (!event.venue || !event.bookingUrl || seenVenues.has(event.venue)) continue;
+    seenVenues.add(event.venue);
+    const venueKey = event.venue.replace(/[.#$/[\]]/g, '_');
+    venueChecks.push(
+      fetch(`${firebaseUrl}/venues/${venueKey}.json`)
+        .then(res => res.json())
+        .then(venueData => {
+          if (!venueData?.bookingUrl) {
+            return fetch(`${firebaseUrl}/venues/${venueKey}.json`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ name: event.venue, bookingUrl: event.bookingUrl })
+            });
+          }
+        })
+    );
+  }
+
+  // Clean up expired suggestions in parallel
   const today = new Date().toISOString().split('T')[0];
-  let expired = 0;
+  const expiredDeletes = [];
   for (const [eid, edata] of Object.entries(existing)) {
     if (edata.status === 'Suggested' && edata.date && edata.date < today) {
-      await fetch(`${firebaseUrl}/events/${eid}.json`, { method: 'DELETE' });
-      expired++;
+      expiredDeletes.push(fetch(`${firebaseUrl}/events/${eid}.json`, { method: 'DELETE' }));
     }
   }
+  const expired = expiredDeletes.length;
+
+  // Execute all writes, venue checks, and deletes in parallel
+  await Promise.all([...writePromises, ...venueChecks, ...expiredDeletes]);
 
   return new Response(JSON.stringify({
     events: events.length,

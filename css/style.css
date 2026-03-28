@@ -981,6 +981,19 @@ details[open] .fold-arrow { transform: rotate(90deg); }
   text-align: center; font-size: 0.7rem; color: var(--text-dim); line-height: 1.3;
 }
 .community-stat-val { font-size: 0.95rem; font-weight: 600; color: var(--text); display: block; }
+.sender-editable .sender-info { cursor: pointer; }
+.sender-edit-panel {
+  display: flex; flex-direction: column; gap: 0.4rem;
+  padding: 0.5rem 0.6rem; margin-bottom: 0.3rem; margin-top: -0.3rem;
+  background: var(--bg2); border: 1px solid var(--amber); border-top: none;
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+}
+.sender-edit-panel .form-input { font-size: 0.85rem; padding: 0.4rem 0.5rem; }
+.sender-edit-panel .sender-edit-save { align-self: flex-end; font-size: 0.8rem; padding: 0.3rem 1rem; }
+.sender-add-section {
+  background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 0.6rem; margin-top: 0.5rem;
+}
 .sender-shared {
   background: none; border: none; cursor: pointer; padding: 0.2rem;
   font-size: 0.85rem; flex-shrink: 0; opacity: 0.7;

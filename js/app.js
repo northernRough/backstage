@@ -448,6 +448,7 @@ function initListeners() {
     allUserPrefs = snap.val() || {};
     renderSuggested();
     renderCommunity();
+    renderCommunitySenders();
   });
   // Notifications listener
   onValue(ref(db, 'notifications/' + currentUser), snap => {
@@ -2038,6 +2039,7 @@ document.getElementById('settingsBtn').addEventListener('click', async () => {
   document.querySelectorAll('[data-provider]').forEach(b => b.classList.toggle('active', b.dataset.provider === provider));
   document.getElementById('imapEmailInput').placeholder = provider === 'gmail' ? 'you@gmail.com' : 'you@icloud.com';
   renderSenders(userData.watchSenders || {}, userData.ticketSenders || {});
+  renderCommunitySenders();
   // Show admin folder for real admin only (not impersonated)
   document.getElementById('adminFolder').style.display = isRealAdmin() ? 'block' : 'none';
   if (isRealAdmin()) renderAdminDashboard('month');
@@ -2393,31 +2395,53 @@ document.getElementById('saveImapCredentials').addEventListener('click', async (
   alert('Email credentials saved.');
 });
 
+function normaliseSender(val) {
+  return typeof val === 'string' ? { email: val, name: '', enabled: true, shared: true } : val;
+}
+
 function renderSenders(watchSenders, ticketSenders) {
   const list = document.getElementById('sendersList');
-  // Merge both lists, normalising old plain-string entries to objects
+  // Current user's own subscriptions
   const entries = [];
   for (const [key, val] of Object.entries(watchSenders || {})) {
-    const entry = typeof val === 'string' ? { email: val, name: '', enabled: true } : val;
-    entries.push({ key, fbPath: 'watchSenders', type: 'newsletter', ...entry });
+    entries.push({ key, fbPath: 'watchSenders', type: 'newsletter', ...normaliseSender(val) });
   }
   for (const [key, val] of Object.entries(ticketSenders || {})) {
-    const entry = typeof val === 'string' ? { email: val, name: '', enabled: true } : val;
-    entries.push({ key, fbPath: 'ticketSenders', type: 'tickets', ...entry });
+    entries.push({ key, fbPath: 'ticketSenders', type: 'tickets', ...normaliseSender(val) });
   }
 
   list.innerHTML = entries.map(s => `
-    <div class="sender-row">
+    <div class="sender-row sender-editable" data-sender-key="${s.key}" data-fb-path="${s.fbPath}">
       <input type="checkbox" class="sender-check" data-sender-key="${s.key}" data-fb-path="${s.fbPath}" ${s.enabled !== false ? 'checked' : ''}>
       <div class="sender-info">
         <div class="sender-name">${s.name || s.email}</div>
         ${s.name ? `<div class="sender-addr">${s.email}</div>` : ''}
       </div>
       <span class="sender-type ${s.type}">${s.type}</span>
-      <button class="sender-shared ${s.shared === false ? 'private' : ''}" data-sender-key="${s.key}" data-fb-path="${s.fbPath}" title="${s.shared === false ? 'Private — only you see events from this' : 'Shared — contributes to community events'}">${s.shared === false ? '🔒' : '👥'}</button>
+      <button class="sender-shared ${s.shared === false ? 'private' : ''}" data-sender-key="${s.key}" data-fb-path="${s.fbPath}" title="${s.shared === false ? 'Private' : 'Shared'}">${s.shared === false ? '🔒' : '👥'}</button>
       <button class="sender-remove" data-sender-key="${s.key}" data-fb-path="${s.fbPath}">&#x2715;</button>
     </div>
-  `).join('') || '<div style="color:var(--text-dim);font-size:0.85rem;">No senders added yet.</div>';
+    <div class="sender-edit-panel" id="edit-${s.key}" style="display:none;">
+      <input type="text" class="form-input sender-edit-name" value="${s.name || ''}" placeholder="Display name">
+      <input type="email" class="form-input sender-edit-email" value="${s.email || ''}" placeholder="Email address">
+      <select class="form-input sender-edit-type">
+        <option value="newsletter" ${s.type === 'newsletter' ? 'selected' : ''}>Newsletter</option>
+        <option value="tickets" ${s.type === 'tickets' ? 'selected' : ''}>Ticket confirmations</option>
+      </select>
+      <button class="save-notes-btn sender-edit-save" data-sender-key="${s.key}" data-fb-path="${s.fbPath}" data-orig-type="${s.type}">Save</button>
+    </div>
+  `).join('') || '<div style="color:var(--text-dim);font-size:0.85rem;">No subscriptions added yet.</div>';
+
+  // Tap row to expand/collapse edit panel
+  list.querySelectorAll('.sender-editable').forEach(row => {
+    row.addEventListener('click', (e) => {
+      if (e.target.closest('.sender-check, .sender-shared, .sender-remove')) return;
+      const panel = document.getElementById('edit-' + row.dataset.senderKey);
+      const wasOpen = panel.style.display !== 'none';
+      list.querySelectorAll('.sender-edit-panel').forEach(p => p.style.display = 'none');
+      if (!wasOpen) panel.style.display = 'flex';
+    });
+  });
 
   list.querySelectorAll('.sender-check').forEach(cb => {
     cb.addEventListener('change', async () => {
@@ -2428,11 +2452,40 @@ function renderSenders(watchSenders, ticketSenders) {
   list.querySelectorAll('.sender-shared').forEach(btn => {
     btn.addEventListener('click', async () => {
       const isPrivate = btn.classList.contains('private');
-      const newShared = isPrivate; // toggle: was private → now shared, was shared → now private
-      await set(ref(db, `users/${currentUser}/${btn.dataset.fbPath}/${btn.dataset.senderKey}/shared`), newShared);
-      btn.classList.toggle('private', !newShared);
-      btn.textContent = newShared ? '👥' : '🔒';
-      btn.title = newShared ? 'Shared — contributes to community events' : 'Private — only you see events from this';
+      await set(ref(db, `users/${currentUser}/${btn.dataset.fbPath}/${btn.dataset.senderKey}/shared`), isPrivate);
+      btn.classList.toggle('private', !isPrivate);
+      btn.textContent = isPrivate ? '👥' : '🔒';
+      btn.title = isPrivate ? 'Shared' : 'Private';
+    });
+  });
+
+  list.querySelectorAll('.sender-edit-save').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const panel = btn.closest('.sender-edit-panel');
+      const name = panel.querySelector('.sender-edit-name').value.trim();
+      const email = panel.querySelector('.sender-edit-email').value.trim();
+      const newType = panel.querySelector('.sender-edit-type').value;
+      const origType = btn.dataset.origType;
+      const origPath = btn.dataset.fbPath;
+      const key = btn.dataset.senderKey;
+      const newPath = newType === 'tickets' ? 'ticketSenders' : 'watchSenders';
+
+      if (origPath !== newPath) {
+        // Type changed — move to the other list
+        const snap = await get(ref(db, `users/${currentUser}/${origPath}/${key}`));
+        const data = snap.val();
+        await remove(ref(db, `users/${currentUser}/${origPath}/${key}`));
+        await push(ref(db, `users/${currentUser}/${newPath}`), { ...normaliseSender(data), name, email });
+      } else {
+        await update(ref(db, `users/${currentUser}/${origPath}/${key}`), { name, email });
+      }
+      panel.style.display = 'none';
+      const [ws, ts] = await Promise.all([
+        get(ref(db, 'users/' + currentUser + '/watchSenders')),
+        get(ref(db, 'users/' + currentUser + '/ticketSenders'))
+      ]);
+      renderSenders(ws.val() || {}, ts.val() || {});
+      renderCommunitySenders();
     });
   });
 
@@ -2444,6 +2497,62 @@ function renderSenders(watchSenders, ticketSenders) {
         get(ref(db, 'users/' + currentUser + '/ticketSenders'))
       ]);
       renderSenders(ws.val() || {}, ts.val() || {});
+      renderCommunitySenders();
+    });
+  });
+}
+
+// Community subscriptions: shared subs from other users, with opt-in/out
+function renderCommunitySenders() {
+  const list = document.getElementById('communitySendersList');
+  if (!list) return;
+  const myOptOuts = allUserPrefs[currentUser]?.optedOutSubs || {};
+
+  // Gather all shared subscriptions from all users (excluding current user's own)
+  const communitySubs = [];
+  const seen = new Set();
+  for (const [userId, prefs] of Object.entries(allUserPrefs)) {
+    if (userId === currentUser) continue;
+    const userName = USERS[userId]?.name || userId;
+    const addSubs = (senders, type) => {
+      for (const [key, val] of Object.entries(senders || {})) {
+        const entry = normaliseSender(val);
+        if (entry.shared === false || entry.enabled === false) continue;
+        const emailLower = (entry.email || '').toLowerCase();
+        if (seen.has(emailLower)) continue;
+        seen.add(emailLower);
+        communitySubs.push({ email: entry.email, name: entry.name, type, contributor: userName, subId: `${userId}:${type}:${emailLower}` });
+      }
+    };
+    addSubs(prefs.watchSenders, 'newsletter');
+    addSubs(prefs.ticketSenders, 'tickets');
+  }
+
+  if (!communitySubs.length) {
+    list.innerHTML = '<div style="color:var(--text-dim);font-size:0.85rem;">No community subscriptions yet.</div>';
+    return;
+  }
+
+  list.innerHTML = communitySubs.map(s => `
+    <div class="sender-row">
+      <input type="checkbox" class="community-sub-check" data-sub-id="${s.subId}" ${!myOptOuts[s.subId.replace(/[.#$/[\]]/g, '_')] ? 'checked' : ''}>
+      <div class="sender-info">
+        <div class="sender-name">${s.name || s.email}</div>
+        ${s.name ? `<div class="sender-addr">${s.email}</div>` : ''}
+        <div class="sender-addr">from ${s.contributor}</div>
+      </div>
+      <span class="sender-type ${s.type}">${s.type}</span>
+    </div>
+  `).join('');
+
+  list.querySelectorAll('.community-sub-check').forEach(cb => {
+    cb.addEventListener('change', async () => {
+      const safeId = cb.dataset.subId.replace(/[.#$/[\]]/g, '_');
+      if (cb.checked) {
+        await remove(ref(db, `users/${currentUser}/optedOutSubs/${safeId}`));
+      } else {
+        await set(ref(db, `users/${currentUser}/optedOutSubs/${safeId}`), true);
+      }
     });
   });
 }
@@ -2457,8 +2566,9 @@ document.getElementById('addSenderBtn').addEventListener('click', async () => {
   const email = emailInput.value.trim();
   if (!email) return;
   const name = nameInput.value.trim();
+  if (!name) { alert('Please give this subscription a name.'); return; }
   const fbPath = typeSelect.value === 'tickets' ? 'ticketSenders' : 'watchSenders';
-  await push(ref(db, 'users/' + currentUser + '/' + fbPath), { email, name, enabled: true });
+  await push(ref(db, 'users/' + currentUser + '/' + fbPath), { email, name, enabled: true, shared: true });
   nameInput.value = '';
   emailInput.value = '';
   emailInput.dispatchEvent(new Event('input', { bubbles: true }));
@@ -2467,6 +2577,7 @@ document.getElementById('addSenderBtn').addEventListener('click', async () => {
     get(ref(db, 'users/' + currentUser + '/ticketSenders'))
   ]);
   renderSenders(ws.val() || {}, ts.val() || {});
+  renderCommunitySenders();
 });
 
 // Shared scan trigger: fires background function and listens for progress via Firebase

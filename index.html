@@ -419,18 +419,26 @@
             <p class="settings-hint" id="passwordHint" style="margin-top:0.3rem;">iCloud: <a href="https://appleid.apple.com/account/manage" target="_blank" style="color:var(--amber)">generate here</a> · Gmail: <a href="https://myaccount.google.com/apppasswords" target="_blank" style="color:var(--amber)">generate here</a></p>
           </div>
           <button class="save-notes-btn" id="saveImapCredentials">Save email credentials</button>
-          <div class="settings-label" style="margin-top:1rem;">Email subscriptions</div>
-          <p class="settings-hint">Venue newsletters and ticket senders to scan. Uncheck to exclude from scans.</p>
+          <div class="settings-label" style="margin-top:1rem;">Your subscriptions</div>
+          <p class="settings-hint">Your contributed venue newsletters and ticket senders.</p>
           <div id="sendersList" class="groups-list"></div>
-          <div class="sender-add-row">
-            <input type="text" id="newSenderName" class="form-input" placeholder="Name, e.g. Ronnie Scott's" style="flex:0.8;">
-            <input type="email" id="newSenderInput" class="form-input" placeholder="Email address" style="flex:1;">
-            <select id="newSenderType" class="form-input" style="flex:0.6;padding:0.4rem;">
-              <option value="newsletter">Newsletter</option>
-              <option value="tickets">Tickets</option>
-            </select>
-            <button class="save-notes-btn" id="addSenderBtn" style="margin-top:0;white-space:nowrap;">Add</button>
+          <div class="sender-add-section">
+            <div class="settings-label" style="font-size:0.8rem;margin-top:0.5rem;">Add subscription</div>
+            <div class="sender-add-row">
+              <input type="text" id="newSenderName" class="form-input" placeholder="Name, e.g. Ronnie Scott's">
+              <input type="email" id="newSenderInput" class="form-input" placeholder="Email address">
+            </div>
+            <div class="sender-add-row" style="margin-top:0.3rem;">
+              <select id="newSenderType" class="form-input" style="flex:1;padding:0.4rem;">
+                <option value="newsletter">Newsletter</option>
+                <option value="tickets">Ticket confirmations</option>
+              </select>
+              <button class="save-notes-btn" id="addSenderBtn" style="margin-top:0;white-space:nowrap;">+ Add</button>
+            </div>
           </div>
+          <div class="settings-label" style="margin-top:1.5rem;">Community subscriptions</div>
+          <p class="settings-hint">Shared by others. Uncheck to opt out of a subscription's events.</p>
+          <div id="communitySendersList" class="groups-list"></div>
           <button class="summarize-btn" id="scanEmailsBtn" style="margin-top:1rem;width:100%;">✦ Scan emails now</button>
           <div id="scanStatus" class="settings-hint" style="margin-top:0.5rem;"></div>
         </details>

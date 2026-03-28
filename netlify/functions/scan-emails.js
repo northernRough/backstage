@@ -113,16 +113,26 @@ export default async (req) => {
       );
       const allMessages = searchResults.flat();
 
-      // Fetch and parse messages (sequential — IMAP requires it on one connection)
+      // Build a UID→metadata map so we can batch-fetch from IMAP
+      const uidMeta = new Map();
       for (const { uid, sender, isTicketSender } of allMessages) {
-        const msg = await client.fetchOne(uid, { source: true });
-        if (!msg?.source) continue;
-        const parsed = await simpleParser(msg.source);
-        const html = parsed.html || '';
-        const links = [...html.matchAll(/href="(https?:\/\/[^"]+)"/gi)].map(m => m[1]);
-        const linkBlock = links.length ? '\n\nLinks found: ' + [...new Set(links)].slice(0, 20).join(' ') : '';
-        const body = ((parsed.text || html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ')) + linkBlock).slice(0, 4000);
-        emailBodies.push({ subject: parsed.subject || '', from: sender, date: parsed.date?.toISOString() || '', body, isTicketSender });
+        uidMeta.set(uid, { sender, isTicketSender });
+      }
+
+      // Batch-fetch all messages at once (IMAP pipelines this internally)
+      if (uidMeta.size > 0) {
+        const uids = [...uidMeta.keys()];
+        for await (const msg of client.fetch(uids, { source: true }, { uid: true })) {
+          if (!msg?.source) continue;
+          const meta = uidMeta.get(msg.uid);
+          if (!meta) continue;
+          const parsed = await simpleParser(msg.source);
+          const html = parsed.html || '';
+          const links = [...html.matchAll(/href="(https?:\/\/[^"]+)"/gi)].map(m => m[1]);
+          const linkBlock = links.length ? '\n\nLinks found: ' + [...new Set(links)].slice(0, 20).join(' ') : '';
+          const body = ((parsed.text || html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ')) + linkBlock).slice(0, 4000);
+          emailBodies.push({ subject: parsed.subject || '', from: meta.sender, date: parsed.date?.toISOString() || '', body, isTicketSender: meta.isTicketSender });
+        }
       }
 
     } finally {

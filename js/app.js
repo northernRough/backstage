@@ -2395,9 +2395,8 @@ document.getElementById('scanEmailsBtn').addEventListener('click', async () => {
 document.getElementById('clearRescanBtn').addEventListener('click', async () => {
   if (!confirm('This will delete all current suggestions and rescan your emails. Continue?')) return;
   const btn = document.getElementById('clearRescanBtn');
-  const status = document.getElementById('scanStatus');
+  const status = document.getElementById('clearRescanStatus');
   btn.disabled = true;
-  document.getElementById('scanEmailsBtn').disabled = true;
   btn.textContent = '✦ Clearing suggestions…';
   status.textContent = 'Removing existing suggestions…';
   try {
@@ -2429,7 +2428,6 @@ document.getElementById('clearRescanBtn').addEventListener('click', async () => 
     status.textContent = 'Error: ' + err.message;
   }
   btn.disabled = false;
-  document.getElementById('scanEmailsBtn').disabled = false;
   btn.textContent = '✦ Clear suggestions & rescan';
 });
 function confirmCloseSettings() {

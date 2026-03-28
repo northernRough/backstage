@@ -130,7 +130,7 @@ export default async (req) => {
           const html = parsed.html || '';
           const links = [...html.matchAll(/href="(https?:\/\/[^"]+)"/gi)].map(m => m[1]);
           const linkBlock = links.length ? '\n\nLinks found: ' + [...new Set(links)].slice(0, 20).join(' ') : '';
-          const body = ((parsed.text || html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ')) + linkBlock).slice(0, 4000);
+          const body = ((parsed.text || html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ')) + linkBlock).slice(0, 2000);
           emailBodies.push({ subject: parsed.subject || '', from: meta.sender, date: parsed.date?.toISOString() || '', body, isTicketSender: meta.isTicketSender });
         }
       }
@@ -174,41 +174,38 @@ For each event return a JSON object with:
 Return ONLY a JSON array of events. If no events found, return [].
 Do not include events that have already passed. Today's date is ${new Date().toISOString().split('T')[0]}.`;
 
-  // Split emails into chunks and process sequentially to stay within API rate limits
-  const CHUNK_SIZE = 8;
-  const chunks = [];
-  for (let i = 0; i < emailBodies.length; i += CHUNK_SIZE) {
-    chunks.push(emailBodies.slice(i, i + CHUNK_SIZE));
+  // Single Claude API call with all emails
+  const prompt = `${promptPreamble}\n\nEmails:\n${emailBodies.map((e, i) => `--- Email ${i + 1} ---\nFrom: ${e.from}${e.isTicketSender ? ' [TICKET/BOOKING SENDER]' : ''}\nSubject: ${e.subject}\nDate: ${e.date}\n\n${e.body}`).join('\n\n')}`;
+
+  const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': anthropicKey,
+      'anthropic-version': '2023-06-01'
+    },
+    body: JSON.stringify({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 4096,
+      messages: [{ role: 'user', content: prompt }]
+    })
+  });
+
+  if (!claudeRes.ok) {
+    const errBody = await claudeRes.text();
+    const isRateLimit = errBody.includes('rate_limit');
+    throw new Error(isRateLimit ? 'AI rate limit reached — please wait a minute and try again.' : `AI service error (${claudeRes.status}). Try again shortly.`);
   }
 
+  const claudeData = await claudeRes.json();
+  const text = claudeData.content?.[0]?.text || '[]';
+
   let events = [];
-  for (const chunk of chunks) {
-    const prompt = `${promptPreamble}\n\nEmails:\n${chunk.map((e, i) => `--- Email ${i + 1} ---\nFrom: ${e.from}${e.isTicketSender ? ' [TICKET/BOOKING SENDER]' : ''}\nSubject: ${e.subject}\nDate: ${e.date}\n\n${e.body}`).join('\n\n')}`;
-
-    const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': anthropicKey,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 4096,
-        messages: [{ role: 'user', content: prompt }]
-      })
-    });
-
-    if (!claudeRes.ok) {
-      const errBody = await claudeRes.text();
-      const isRateLimit = errBody.includes('rate_limit');
-      throw new Error(isRateLimit ? 'AI rate limit reached — please wait a minute and try again.' : `AI service error (${claudeRes.status}). Try again shortly.`);
-    }
-
-    const claudeData = await claudeRes.json();
-    const text = claudeData.content?.[0]?.text || '[]';
+  try {
     const match = text.match(/\[[\s\S]*\]/);
-    if (match) events.push(...JSON.parse(match[0]));
+    if (match) events = JSON.parse(match[0]);
+  } catch (e) {
+    throw new Error('Failed to parse events from AI response');
   }
 
   // Deduplicate within the batch itself (case-insensitive)

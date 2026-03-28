@@ -149,12 +149,18 @@ exports.handler = async (event) => {
           uidMeta.set(uid, { sender, isTicketSender });
         }
 
+        await appendLog(firebaseUrl, userId, scanLog, `UIDs to fetch: ${allMessages.length} messages, ${uidMeta.size} unique UIDs (${allMessages.length - uidMeta.size} duplicates removed)`);
+
         if (uidMeta.size > 0) {
           const uids = [...uidMeta.keys()];
+          let fetchCount = 0;
+          let noSourceCount = 0;
+          let noMetaCount = 0;
           for await (const msg of client.fetch(uids, { source: true }, { uid: true })) {
-            if (!msg?.source) continue;
+            fetchCount++;
+            if (!msg?.source) { noSourceCount++; continue; }
             const meta = uidMeta.get(msg.uid);
-            if (!meta) continue;
+            if (!meta) { noMetaCount++; continue; }
             const parsed = await simpleParser(msg.source);
             const html = parsed.html || '';
             const links = [...html.matchAll(/href="(https?:\/\/[^"]+)"/gi)].map(m => m[1]);
@@ -162,6 +168,7 @@ exports.handler = async (event) => {
             const body = ((parsed.text || html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ')) + linkBlock).slice(0, 4000);
             emailBodies.push({ subject: parsed.subject || '', from: meta.sender, date: parsed.date?.toISOString() || '', body, isTicketSender: meta.isTicketSender });
           }
+          await appendLog(firebaseUrl, userId, scanLog, `Fetch results: ${fetchCount} returned by IMAP, ${noSourceCount} had no source, ${noMetaCount} had no meta match, ${emailBodies.length} parsed successfully`);
         }
 
       } finally {
@@ -271,12 +278,17 @@ Today's date is ${new Date().toISOString().split('T')[0]}. Include ALL events me
         if (match) {
           const parsed = JSON.parse(match[0]);
           await appendLog(firebaseUrl, userId, scanLog, `Sender ${senderIndex} "${sender}": ${senderEmails.length} emails → ${parsed.length} events (${inputTokens}in/${outputTokens}out, stop=${stopReason})`);
+          if (parsed.length === 0) {
+            await appendLog(firebaseUrl, userId, scanLog, `  Claude full response: ${text.slice(0, 500)}`);
+            await appendLog(firebaseUrl, userId, scanLog, `  Email subjects: ${senderEmails.map(e => e.subject).join(' | ')}`);
+            await appendLog(firebaseUrl, userId, scanLog, `  Sample body (first email, first 500 chars): ${senderEmails[0]?.body?.slice(0, 500)}`);
+          }
           events.push(...parsed);
         } else {
-          await appendLog(firebaseUrl, userId, scanLog, `Sender ${senderIndex} "${sender}": No JSON array found in response. Text: ${text.slice(0, 300)}`);
+          await appendLog(firebaseUrl, userId, scanLog, `Sender ${senderIndex} "${sender}": No JSON array found. Full response: ${text.slice(0, 500)}`);
         }
       } catch (e) {
-        await appendLog(firebaseUrl, userId, scanLog, `Sender ${senderIndex} "${sender}": JSON parse error: ${e.message}. Text: ${text.slice(0, 300)}`);
+        await appendLog(firebaseUrl, userId, scanLog, `Sender ${senderIndex} "${sender}": JSON parse error: ${e.message}. Text: ${text.slice(0, 500)}`);
       }
 
       // Brief pause between senders to stay under rate limits

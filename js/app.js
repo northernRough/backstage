@@ -1448,6 +1448,7 @@ function openEventDetail(id) {
     ${e.status === 'Booked' && e.date ? `<div class="detail-calendar-row"><button class="detail-action-btn" id="addToCalendarBtn">📅 Add to Calendar</button></div>` : ''}
     ${e.status === 'Past' && (ratingRows || summaryRow) ? `<div class="detail-ratings">${ratingRows}${summaryRow}</div>` : ''}
     ${e.status === 'Past' ? (() => { const sa = typeof e.seeAgain === 'object' ? !!e.seeAgain?.[currentUser] : !!e.seeAgain; return `<div class="detail-score-row">${avg != null ? `<span class="detail-avg-score">${avg.toFixed(1)}</span>` : ''}<button class="see-again-btn ${sa ? 'see-again-active' : ''}" id="seeAgainBtn"><span class="see-again-icon">↻</span> ${sa ? 'Would see again' : 'See again?'}</button></div>`; })() : ''}
+    ${e.tasteReason ? `<div class="divider"></div><div class="detail-notes-section"><div class="detail-notes-label">Why this suits you</div><div class="taste-reason">✦ ${e.tasteReason}</div></div>` : ''}
     ${(() => { const dn = displayNotes(e.artistNotes, currentUser) || (typeof e.notes === 'string' ? e.notes : ''); return dn ? `<div class="divider"></div><div class="detail-notes-section"><div class="detail-notes-label">About the artist / show</div><div class="detail-notes">${dn}</div></div>` : ''; })()}
     ${(() => {
       // Show personal notes from group members only
@@ -1981,6 +1982,19 @@ document.querySelectorAll('[data-period]').forEach(btn => {
 document.getElementById('forceRefreshBtn').addEventListener('click', async () => {
   if (!confirm('This will reload the app for all users with it open. Continue?')) return;
   await set(ref(db, 'appVersion'), Date.now());
+});
+
+document.getElementById('clearSuggestionsBtn').addEventListener('click', async () => {
+  const suggested = Object.entries(allEvents).filter(([_, e]) => e.status === 'Suggested');
+  if (!suggested.length) { alert('No suggestions to clear.'); return; }
+  if (!confirm(`Delete all ${suggested.length} suggested events? This can't be undone.`)) return;
+  const btn = document.getElementById('clearSuggestionsBtn');
+  btn.disabled = true;
+  btn.textContent = 'Clearing…';
+  await Promise.all(suggested.map(([id]) => remove(ref(db, 'events/' + id))));
+  btn.disabled = false;
+  btn.textContent = '✕ Clear All Suggestions';
+  alert(`Cleared ${suggested.length} suggestions. Run a new scan to repopulate.`);
 });
 
 function renderAdminDashboard(period) {

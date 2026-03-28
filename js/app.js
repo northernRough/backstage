@@ -434,6 +434,7 @@ function initListeners() {
     renderSuggested();
     renderArtists();
     renderVenues();
+    renderCommunity();
   });
   onValue(ref(db, 'artists'), snap => {
     allArtists = snap.val() || {};
@@ -446,6 +447,7 @@ function initListeners() {
   onValue(ref(db, 'users'), snap => {
     allUserPrefs = snap.val() || {};
     renderSuggested();
+    renderCommunity();
   });
   // Notifications listener
   onValue(ref(db, 'notifications/' + currentUser), snap => {
@@ -1099,6 +1101,84 @@ function renderVenues() {
   list.querySelectorAll('.profile-card').forEach(card => {
     card.addEventListener('click', () => openProfile('venue', card.dataset.name));
   });
+}
+
+// ===== COMMUNITY TAB =====
+function renderCommunity() {
+  const list = document.getElementById('communityList');
+  if (!list) return;
+
+  // Compute scores for each non-hidden user
+  const scores = [];
+  for (const [userId, user] of Object.entries(USERS)) {
+    if (user.hidden) continue;
+    const prefs = allUserPrefs[userId] || {};
+
+    // Count shared subscriptions
+    let subscriptions = 0;
+    for (const val of Object.values(prefs.watchSenders || {})) {
+      const entry = typeof val === 'string' ? {} : val;
+      if (entry.enabled !== false && entry.shared !== false) subscriptions++;
+    }
+    for (const val of Object.values(prefs.ticketSenders || {})) {
+      const entry = typeof val === 'string' ? {} : val;
+      if (entry.enabled !== false && entry.shared !== false) subscriptions++;
+    }
+
+    // Count ratings, comments, and events attended from event data
+    let ratings = 0;
+    let comments = 0;
+    let attended = 0;
+    let added = 0;
+    for (const e of Object.values(allEvents)) {
+      if (e.ratings?.[userId]) ratings++;
+      if (e.notes && typeof e.notes === 'object' && e.notes[userId]) comments++;
+      else if (e.personalNotes && typeof e.personalNotes === 'object' && e.personalNotes[userId]) comments++;
+      if (e.status === 'Past' && e.attendees?.[userId]) attended++;
+      if (e.addedBy === userId) added++;
+    }
+
+    // Weighted score
+    const score = (subscriptions * 5) + (ratings * 2) + (comments * 3) + (attended * 1) + (added * 2);
+
+    // Determine level
+    let level, levelClass;
+    if (score >= 100) { level = 'Impresario'; levelClass = 'impresario'; }
+    else if (score >= 40) { level = 'Patron'; levelClass = 'patron'; }
+    else if (score >= 15) { level = 'Critic'; levelClass = 'critic'; }
+    else { level = 'Audience'; levelClass = 'audience'; }
+
+    scores.push({ userId, name: user.name, initial: user.initial, score, level, levelClass, subscriptions, ratings, comments, attended, added });
+  }
+
+  scores.sort((a, b) => b.score - a.score);
+
+  const avatarColors = ['#c47b2b', '#7c5cbf', '#3b82f6', '#22c55e', '#ef4444', '#ec4899', '#f59e0b', '#06b6d4', '#8b5cf6', '#f97316', '#14b8a6'];
+
+  list.innerHTML = `
+    <div class="community-header">
+      <h2>Community</h2>
+      <p>Ranked by contributions — subscriptions, ratings, comments and events</p>
+    </div>
+    ${scores.map((s, i) => `
+      <div class="community-card">
+        <div class="community-rank">${i + 1}</div>
+        <div class="community-avatar" style="background:${avatarColors[i % avatarColors.length]}22;color:${avatarColors[i % avatarColors.length]}">
+          ${s.initial}
+        </div>
+        <div class="community-info">
+          <div class="community-name">${s.name}</div>
+          <div class="community-level ${s.levelClass}">${s.level}</div>
+        </div>
+        <div class="community-stats">
+          <div class="community-stat"><span class="community-stat-val">${s.subscriptions}</span>subs</div>
+          <div class="community-stat"><span class="community-stat-val">${s.ratings}</span>rated</div>
+          <div class="community-stat"><span class="community-stat-val">${s.comments}</span>notes</div>
+          <div class="community-stat"><span class="community-stat-val">${s.attended}</span>seen</div>
+        </div>
+      </div>
+    `).join('')}
+  `;
 }
 
 // ===== ADD EVENT MODAL =====

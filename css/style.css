@@ -172,12 +172,12 @@ body {
 }
 .tab-nav::-webkit-scrollbar { display: none; }
 .tab-btn {
-  flex: 1; min-width: 80px; padding: 0.75rem 0.5rem;
+  flex: 1 1 0; padding: 0.75rem 0.25rem;
   background: none; border: none; border-bottom: 2px solid transparent;
   color: var(--text-dim); cursor: pointer;
-  font-family: var(--font-body); font-size: 0.85rem;
-  font-weight: 400; letter-spacing: 0.05em;
-  transition: all 0.2s; white-space: nowrap;
+  font-family: var(--font-body); font-size: 0.75rem;
+  font-weight: 400; letter-spacing: 0.02em;
+  transition: all 0.2s; white-space: nowrap; text-align: center;
 }
 .tab-btn.active { color: var(--amber); border-bottom-color: var(--amber); }
 
